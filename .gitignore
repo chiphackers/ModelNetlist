@@ -100,9 +100,6 @@ ENV/
 # mypy
 .mypy_cache/
 
-# added
-.swp
-.swo
-
-# images
-.png
+*.swp
+*.png
+*.swo
