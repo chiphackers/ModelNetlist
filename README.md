@@ -62,18 +62,4 @@ Above script will create a SimpleNetlist and save the diagram in a file called s
 ![schema.png](https://github.com/udara28/SimpleNetlist/schema.png)
 
 
-### Elements Generating APIs
 
-|  API           |  Params         |    Returns          |     Description                                     |
-|:--------------:|:---------------:|:-------------------:|:---------------------------------------------------:|
-| addCell        | Cell object     | None                | Create an isolated cell graph and add it to netlist |
-| addNet         | Net object      | None                | Adding a net to the existing netlist                |
-|----------------|-----------------|---------------------|-----------------------------------------------------|
-
-### Elements Accessing APIs
-
-|  API           |  Params         |    Returns          |     Description                                     |
-|:--------------:|:---------------:|:-------------------:|:---------------------------------------------------:|
-| getConnectedNet| Pin object      | Net object          | This returns the Net that is connected to Net       |
-| getNeighbours  | any object      | list of neighbours  | This returns a list of all neighbours               |
-|----------------|-----------------|---------------------|-----------------------------------------------------|
