@@ -1,8 +1,8 @@
 from .nlUtils import *
 from .nlNode import *
-from .Pins import *
+from .Pin import *
 
-class Gate(nlNode):
+class Cell(nlNode):
     """
     Generic Gate class
     """
@@ -54,41 +54,41 @@ class Gate(nlNode):
 # Classes with base class Gate
 #############################################################
 @static_vars(inst=0)
-class AND2(Gate):
+class AND2(Cell):
     def __init__(self, parent):
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
         name = 'AND2_%d' % AND2.inst
         AND2.inst += 1
-        Gate.__init__(self, name, parent, lambda x, y: x & y, [in1, in2], [out])
+        Cell.__init__(self, name, parent, lambda x, y: x & y, [in1, in2], [out])
 
 @static_vars(inst=0)
-class OR2(Gate):
+class OR2(Cell):
     def __init__(self, parent):
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
         name = 'OR2_%d' % OR2.inst
         OR2.inst += 1
-        Gate.__init__(self, name, parent, lambda x, y: x | y, [in1, in2], [out])
+        Cell.__init__(self, name, parent, lambda x, y: x | y, [in1, in2], [out])
 
 @static_vars(inst=0)
-class XOR2(Gate):
+class XOR2(Cell):
     def __init__(self, parent):
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
         name = 'XOR2_%d' % OR2.inst
         OR2.inst += 1
-        Gate.__init__(self, name, parent, lambda x, y: x ^ y, [in1, in2], [out])
+        Cell.__init__(self, name, parent, lambda x, y: x ^ y, [in1, in2], [out])
 
 @static_vars(inst=0)
-class INV(Gate):
+class INV(Cell):
     def __init__(self, parent):
         in1 = Pin('IN1', self)
         out = Pin('OUT', self)
         name = 'INV_%d' % INV.inst
         INV.inst += 1
-        Gate.__init__(self, name, parent, lambda x: ~x, [in1], [out])
+        Cell.__init__(self, name, parent, lambda x: ~x, [in1], [out])
 

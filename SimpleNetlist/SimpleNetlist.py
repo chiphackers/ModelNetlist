@@ -1,7 +1,7 @@
 from random import randint
 
 from .nlUtils import *
-from .Gates import *
+from .Cell import *
 ##############################################################
 # Main Class : NetList
 ##############################################################
@@ -20,7 +20,7 @@ class SimpleNetlist:
     #########################################
     ### APIs to add instances to netlist  ###
     #########################################
-    def addGate(self, inst):
+    def addCell(self, inst):
         cellGraph = inst.populateCellGraph()
         self._graph = nx.compose(cellGraph, self._graph)
 
