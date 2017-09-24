@@ -5,7 +5,7 @@ from .Gates import *
 ##############################################################
 # Main Class : NetList
 ##############################################################
-class NetList:
+class SimpleNetlist:
 
     def __init__(self, name):
         self._name = name
