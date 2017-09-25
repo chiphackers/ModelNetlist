@@ -92,3 +92,12 @@ class INV(Cell):
         INV.inst += 1
         Cell.__init__(self, name, parent, lambda x: ~x, [in1], [out])
 
+@static_vars(inst=0)
+class FLOP(Cell):
+    def __init__(self, parent):
+        d = Pin('D', self)
+        q = Pin('Q', self)
+        clk = Pin('CLK', self)
+        name = 'FLOP_%d' % FLOP.inst
+        FLOP.inst += 1
+        Cell.__init__(self, name, parent, lambda d, c, q: d, [d, clk], [q])

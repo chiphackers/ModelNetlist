@@ -61,7 +61,7 @@ class SimpleNetlist:
         
     def getPort(self, name):
         for dir in self._ports.keys():
-            for port in self._ports[dir]
+            for port in self._ports[dir]:
                 if port.getName() == name:
                     return port
         return None
