@@ -10,6 +10,7 @@ class SimpleNetlist:
     def __init__(self, name):
         self._name = name
         self._graph = nx.Graph()
+        self._ports = { 'in' : [], 'out' : [], 'bi' : [] }
 
     def __str__(self):
         return self._name
@@ -27,6 +28,15 @@ class SimpleNetlist:
     def addNet(self, inst):
         netGraph = inst.populateNetGraph()
         self._graph = nx.compose(netGraph, self._graph)
+        
+    def addPort(self, direction, name):
+        port = Pin(name, self)
+        if not direction in self._ports.keys():
+            shout('ERROR', 'invalid direction. Allowed directions are %s' % self._ports.keys())
+
+        self._ports[direction].append(port)
+        port.setAttribute('port', direction)
+        self._graph.add_node(port)
 
     #########################################
     ### APIs to access netlist items      ###
@@ -42,7 +52,20 @@ class SimpleNetlist:
                 if neighbor.getType() == 'NET':
                     return neighbor
             return None
-
+            
+    def getInputPorts(self):
+        return self._ports['in']
+        
+    def getOutputPorts(self):
+        return self._ports['out']
+        
+    def getPort(self, name):
+        for dir in self._ports.keys():
+            for port in self._ports[dir]
+                if port.getName() == name:
+                    return port
+        return None
+        
     def getNeighbours(self, node):
         return self._graph.neighbors(node)
 
