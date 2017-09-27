@@ -1,12 +1,13 @@
+from .nlUtils import *
 from .nlNode import *
-from .Pin import *
+from .Pins import *
 
-class Cell(nlNode):
+class Gate(nlNode):
     """
     Generic Gate class
     """
     def __init__(self, name, parent, function, inputs, outputs):
-        super().__init__('CELL', name, parent)
+        super().__init__('GATE', name, parent)
         self._function = function
         if len(inputs) > 0 :
             self._inputs = inputs
@@ -53,50 +54,40 @@ class Cell(nlNode):
 # Classes with base class Gate
 #############################################################
 @static_vars(inst=0)
-class AND2(Cell):
+class AND2(Gate):
     def __init__(self, parent):
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
         name = 'AND2_%d' % AND2.inst
         AND2.inst += 1
-        Cell.__init__(self, name, parent, lambda x, y: x & y, [in1, in2], [out])
+        Gate.__init__(self, name, parent, lambda x, y: x & y, [in1, in2], [out])
 
 @static_vars(inst=0)
-class OR2(Cell):
+class OR2(Gate):
     def __init__(self, parent):
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
         name = 'OR2_%d' % OR2.inst
         OR2.inst += 1
-        Cell.__init__(self, name, parent, lambda x, y: x | y, [in1, in2], [out])
+        Gate.__init__(self, name, parent, lambda x, y: x | y, [in1, in2], [out])
 
 @static_vars(inst=0)
-class XOR2(Cell):
-    def __init__(self, parent):
-        in1 = Pin('IN1', self)
-        in2 = Pin('IN2', self)
-        out = Pin('OUT', self)
-        name = 'XOR2_%d' % OR2.inst
-        OR2.inst += 1
-        Cell.__init__(self, name, parent, lambda x, y: x ^ y, [in1, in2], [out])
-
-@static_vars(inst=0)
-class INV(Cell):
+class INV(Gate):
     def __init__(self, parent):
         in1 = Pin('IN1', self)
         out = Pin('OUT', self)
         name = 'INV_%d' % INV.inst
         INV.inst += 1
-        Cell.__init__(self, name, parent, lambda x: ~x, [in1], [out])
+        Gate.__init__(self, name, parent, lambda x: ~x, [in1], [out])
 
 @static_vars(inst=0)
-class FLOP(Cell):
+class XOR2(Gate):
     def __init__(self, parent):
-        d = Pin('D', self)
-        q = Pin('Q', self)
-        clk = Pin('CLK', self)
-        name = 'FLOP_%d' % FLOP.inst
-        FLOP.inst += 1
-        Cell.__init__(self, name, parent, lambda d, c, q: d, [d, clk], [q])
+        in1 = Pin('IN1', self)
+        in2 = Pin('IN2', self)
+        out = Pin('OUT', self)
+        name = 'XOR2_%d' % XOR2.inst
+        XOR2.inst += 1
+        Gate.__init__(self, name, parent, lambda x, y: x ^ y, [in1, in2], [out])

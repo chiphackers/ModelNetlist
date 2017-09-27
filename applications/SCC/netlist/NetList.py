@@ -1,61 +1,30 @@
 from random import randint
 
 from .nlUtils import *
-from .nlNode import *
-from .Cell import *
+from .Gates import *
 ##############################################################
 # Main Class : NetList
 ##############################################################
-class SimpleNetlist(nlNode):
+class NetList:
 
     def __init__(self, name):
-        super().__init__('NETLIST', name, None)
+        self._name = name
         self._graph = nx.Graph()
-        self._ports = { 'in' : [], 'out' : [], 'bi' : [] }
+        self._nets = []
 
-    #########################################
-    ### APIs to add instances to netlist  ###
-    #########################################
-    def addCell(self, inst):
+    def addGate(self, inst):
         cellGraph = inst.populateCellGraph()
         self._graph = nx.compose(cellGraph, self._graph)
 
     def addNet(self, inst):
         netGraph = inst.populateNetGraph()
         self._graph = nx.compose(netGraph, self._graph)
-        
-    def addPort(self, direction, name):
-        port = Pin(name, self)
-        if not direction in self._ports.keys():
-            shout('ERROR', 'invalid direction. Allowed directions are %s' % self._ports.keys())
+        self._nets.append(inst)
 
-        self._ports[direction].append(port)
-        port.setAttribute('port', direction)
-        self._graph.add_node(port)
+    def getName(self):
+        return self._name
 
-    #########################################
-    ### APIs to access netlist items      ###
-    #########################################
-    def getInputPorts(self):
-        return self._ports['in']
-        
-    def getOutputPorts(self):
-        return self._ports['out']
-        
-    def getPort(self, name):
-        for dir in self._ports.keys():
-            for port in self._ports[dir]:
-                if port.getName() == name:
-                    return port
-        return None
-        
-    def getNeighbours(self, node):
-        return self._graph.neighbors(node)
-
-    ##########################################
-    ### move this out
-    ##########################################
-    def saveGraph(self,file_name):
+    def save_graph(self,file_name):
         #initialze Figure
         plt.figure(num=None, figsize=(20, 20), dpi=80)
         plt.axis('off')
@@ -63,7 +32,7 @@ class SimpleNetlist(nlNode):
 
         pos = nx.spring_layout(self._graph)
 
-        # CELL Loop
+        # GATE Loop
         gateIndex = 1
         gateList = []
         pinList = []
@@ -78,7 +47,7 @@ class SimpleNetlist(nlNode):
                 net = node
                 netList.append(net)
                 labels[net] = net.getName()
-            elif node.getType() == 'CELL':
+            elif node.getType() == 'GATE':
                 gate = node
                 gateIndex += 1
 
@@ -98,13 +67,6 @@ class SimpleNetlist(nlNode):
                     pin_pos_ = pos[pin]
                     pin_pos_[0] = gate_pos_[0] - 1.5
                     pin_pos_[1] = gate_pos_[1] + 0.5 * ((index+1) - inMid)
-
-                    connectedNet = pin.getConnectedNet()
-                    if connectedNet != None:
-                        net_pos_ = pos[connectedNet]
-                        net_pos_[0] = (pin_pos_[0] + net_pos_[0])/2
-                        net_pos_[1] = (pin_pos_[1] + net_pos_[1])/2
-
     
                 outList = gate.getOutputs()
                 outCount = len(outList)
@@ -116,11 +78,6 @@ class SimpleNetlist(nlNode):
                     pin_pos_[0] = gate_pos_[0] + 1.5
                     pin_pos_[1] = gate_pos_[1] + 0.5 * ((index+1) - outMid)
 
-                    connectedNet = pin.getConnectedNet()
-                    if connectedNet != None:
-                        net_pos_ = pos[connectedNet]
-                        net_pos_[0] = (pin_pos_[0] + net_pos_[0])/2
-                        net_pos_[1] = (pin_pos_[1] + net_pos_[1])/2
 
         nx.draw_networkx_nodes(self._graph, pos, node_shape='>', node_size=600, node_color='c', nodelist=pinList)
         nx.draw_networkx_nodes(self._graph, pos, node_shape='s', node_size=2400, node_color='y', nodelist=gateList)
@@ -133,4 +90,6 @@ class SimpleNetlist(nlNode):
         plt.savefig(file_name,bbox_inches="tight")
         pylab.close()
         del fig
-
+        
+    def getNets(self):
+        return self._nets 

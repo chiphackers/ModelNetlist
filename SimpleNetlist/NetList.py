@@ -1,29 +1,30 @@
 from random import randint
 
 from .nlUtils import *
-from .nlNode import *
-from .Cell import *
+from .Gates import *
 ##############################################################
 # Main Class : NetList
 ##############################################################
-class SimpleNetlist(nlNode):
+class NetList:
 
     def __init__(self, name):
-        super().__init__('NETLIST', name, None)
+        self._name = name
         self._graph = nx.Graph()
         self._ports = { 'in' : [], 'out' : [], 'bi' : [] }
+
+    def __str__(self):
+        return self._name
+
+    def getName(self):
+        return self._name
 
     #########################################
     ### APIs to add instances to netlist  ###
     #########################################
-    def addCell(self, inst):
+    def addGate(self, inst):
         cellGraph = inst.populateCellGraph()
         self._graph = nx.compose(cellGraph, self._graph)
 
-    def addNet(self, inst):
-        netGraph = inst.populateNetGraph()
-        self._graph = nx.compose(netGraph, self._graph)
-        
     def addPort(self, direction, name):
         port = Pin(name, self)
         if not direction in self._ports.keys():
@@ -33,24 +34,33 @@ class SimpleNetlist(nlNode):
         port.setAttribute('port', direction)
         self._graph.add_node(port)
 
+    def addNet(self, inst):
+        netGraph = inst.populateNetGraph()
+        self._graph = nx.compose(netGraph, self._graph)
+
     #########################################
     ### APIs to access netlist items      ###
     #########################################
-    def getInputPorts(self):
-        return self._ports['in']
-        
-    def getOutputPorts(self):
-        return self._ports['out']
-        
-    def getPort(self, name):
-        for dir in self._ports.keys():
-            for port in self._ports[dir]:
-                if port.getName() == name:
-                    return port
-        return None
-        
+    def getConnectedNet(self, pin):
+        if pin.getType() != 'PIN':
+            shout('ERROR', '%s is not a PIN object')
+            return None
+
+        else:
+            neighborList = self._graph.neighbors(pin)
+            for neighbor in neighborList:
+                if neighbor.getType() == 'NET':
+                    return neighbor
+            return None
+
     def getNeighbours(self, node):
         return self._graph.neighbors(node)
+
+    def getPorts(self, direction):
+        if not direction in self._ports.keys():
+            shout('ERROR', 'invalid direction. Allowed directions are %s' % self._ports.keys())
+
+        return self._ports[direction]
 
     ##########################################
     ### move this out
@@ -63,7 +73,7 @@ class SimpleNetlist(nlNode):
 
         pos = nx.spring_layout(self._graph)
 
-        # CELL Loop
+        # GATE Loop
         gateIndex = 1
         gateList = []
         pinList = []
@@ -78,7 +88,7 @@ class SimpleNetlist(nlNode):
                 net = node
                 netList.append(net)
                 labels[net] = net.getName()
-            elif node.getType() == 'CELL':
+            elif node.getType() == 'GATE':
                 gate = node
                 gateIndex += 1
 
@@ -99,7 +109,7 @@ class SimpleNetlist(nlNode):
                     pin_pos_[0] = gate_pos_[0] - 1.5
                     pin_pos_[1] = gate_pos_[1] + 0.5 * ((index+1) - inMid)
 
-                    connectedNet = pin.getConnectedNet()
+                    connectedNet = self.getConnectedNet(pin)
                     if connectedNet != None:
                         net_pos_ = pos[connectedNet]
                         net_pos_[0] = (pin_pos_[0] + net_pos_[0])/2
@@ -116,7 +126,7 @@ class SimpleNetlist(nlNode):
                     pin_pos_[0] = gate_pos_[0] + 1.5
                     pin_pos_[1] = gate_pos_[1] + 0.5 * ((index+1) - outMid)
 
-                    connectedNet = pin.getConnectedNet()
+                    connectedNet = self.getConnectedNet(pin)
                     if connectedNet != None:
                         net_pos_ = pos[connectedNet]
                         net_pos_[0] = (pin_pos_[0] + net_pos_[0])/2
