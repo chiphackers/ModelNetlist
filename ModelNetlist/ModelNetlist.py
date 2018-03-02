@@ -6,7 +6,7 @@ from .Cell import *
 ##############################################################
 # Main Class : NetList
 ##############################################################
-class SimpleNetlist(nlNode):
+class ModelNetlist(nlNode):
 
     def __init__(self, name):
         super().__init__('NETLIST', name, None)

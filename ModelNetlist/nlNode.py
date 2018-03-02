@@ -3,8 +3,8 @@ from commons import *
 # Base Class
 ##############################################################################
 class nlNode:
-    def __init__(self, type, name, parent):
-        self._type = type
+    def __init__(self, obj_type, name, parent):
+        self._type = obj_type
         self._name = name
         self._parent = parent
         self._attributes = {}

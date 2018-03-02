@@ -1,25 +1,25 @@
-# SimpleNetlist
+# ModelNetlist
 
 
 ## Introduction
 
 This repository contains a simple model for representing netlists(electronic circuits). It is developed for educational purposes hence favors simplicity over performance. The attempt is to develop a simple model which can completely describe a netlist. SimpleNelist is using [NetworkX](https://networkx.github.io/) which is a more generic graph representation written in Python.
 
-SimpleNetlist can be used to learn how algorithms are written in EDA(Electronic Design Automation). Under applications/ there are several examples on how to write algorithms to extract information about a netlist. More detailed explanation of the application and its implementation is present in the README in each application folder.
+ModelNetlist can be used to learn how algorithms are written in EDA(Electronic Design Automation). Under applications/ there are several examples on how to write algorithms to extract information about a netlist. More detailed explanation of the application and its implementation is present in the README in each application folder.
 
-This model is used by [ChipHackers](https://chiphackers.com) for their EDA related challenges. Try solving those challenges to get more familiar on how to use SimpleNetlist model.
+This model is used by [ChipHackers](https://chiphackers.com) for their EDA related challenges. Try solving those challenges to get more familiar on how to use ModelNetlist model.
 
 
 ## Installation
 
-Currently only method to start using SimpleNetlist is through GitHub repository. Please use below BASH commands to setup the enviorment. Windows users can set the PYTHONPATH variable appropriately.
+Currently only method to start using ModelNetlist is through GitHub repository. Please use below BASH commands to setup the enviorment. Windows users can set the PYTHONPATH variable appropriately.
 
 ```sh
 cd <clone directory>
 
-git clone https://github.com/udara28/SimpleNetlist.git
+git clone https://github.com/udara28/ModelNetlist.git
 
-export PYTHONPATH="<clone directory>/SimpleNetlist"
+export PYTHONPATH="<clone directory>/ModelNetlist"
 ```
 
 ## Usage
@@ -30,9 +30,9 @@ export PYTHONPATH="<clone directory>/SimpleNetlist"
 
 
 ```python
-from SimpleNetlist import *
+from ModelNetlist import *
 
-netlist = SimpleNetlist('top1')
+netlist = ModelNetlist('top1')
 
 and1 = AND2(netlist)
 netlist.addCell(and1)
@@ -57,9 +57,9 @@ netlist.saveGraph('schema.png')
 
 ```
 
-Above script will create a SimpleNetlist and save the diagram in a file called schema.png which will look like below.
+Above script will create a ModelNetlist and save the diagram in a file called schema.png which will look like below.
 
-![schema.png](https://github.com/udara28/SimpleNetlist/schema.png)
+![schema.png](https://github.com/chiphackers/ModelNetlist/schema.png)
 
 
 
