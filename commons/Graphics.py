@@ -1,7 +1,7 @@
 import sys
 import random
+import collections
 import matplotlib
-matplotlib.use('Agg')
 
 from matplotlib import pylab
 
@@ -97,20 +97,20 @@ def drawNetlist(schematic,file_name):
     # incomming_edges and outgoing_edges are not empty then there are loops in circuit
     # it will not matter for sorting
 
-    # when a gate is placed cluster depth increases
-    clusterDepths = {}
+    # when a gate is placed cluster height increases
+    clusterHeight = {}
     # Bringing cell pins close to cell node
     for gate in schematic.gateList :
         cluster_id = gate.getAttribute('cluster_id')
         if cluster_id == None:
             cluster_id = 1
 
-        if not cluster_id in clusterDepths:
-            clusterDepths[cluster_id] = 1
+        if not cluster_id in clusterHeight:
+            clusterHeight[cluster_id] = 1
         else:
-            clusterDepths[cluster_id] += 1
+            clusterHeight[cluster_id] += 1
 
-        gate.setAttribute('cluster_depth', clusterDepths[cluster_id])
+        gate.setAttribute('cluster_height', clusterHeight[cluster_id])
         gate_pos_ = pos[gate]
 
         # x position
@@ -118,7 +118,7 @@ def drawNetlist(schematic,file_name):
         diagWidth = max(schematic.figure_width, gate_pos_[0])
 
         # y position
-        gate_pos_[1] = clusterDepths[cluster_id] * 5
+        gate_pos_[1] = clusterHeight[cluster_id] * schematic.cell_seperation_y
 
         inList = gate.getInputs()
         inCount = len(inList)
@@ -160,6 +160,20 @@ def drawNetlist(schematic,file_name):
     # placging nets
     v_wire_map = {}   # keep track of vertical wire id between clusters
     v_wire_names_map = {} # { {net} : {cluster_id : (wire_map[cluster_id], max, min)} }
+    ######## Model Description using v_wire and h_wire ##################
+    #                                                                   #
+    #      cluster_1      cluster_2       cluster_3                     #
+    #                                                                   #
+    #  >    ------           ------          ------     >               #
+    #      | cell |-----max | cell |   -----| cell |          height 1  #
+    #       ------     |     ------    |     ------                     #
+    #               min|----------------max                             #
+    #  >       v_wire->|         ^-h_wire               >               #
+    #       ------     |      ------         ------                     #
+    #      | cell | min-----| cell |       | cell |           height 0  #
+    #  >    ------            ------         ------     >               #
+    #                                                                   #
+    #####################################################################
     for net in schematic.netList:
 
         net_color = plotColor(schematic.wire_color)
@@ -174,7 +188,7 @@ def drawNetlist(schematic,file_name):
                 pCell = driver.getParent()
                 if pCell != None and pCell.getType() == 'CELL':
                     cluster_id = pCell.getAttribute('cluster_id')
-                    cluster_depth = pCell.getAttribute('cluster_depth')
+                    cluster_height = pCell.getAttribute('cluster_height')
 
                     d_x = pos[driver][0]
                     d_y = pos[driver][1]
@@ -233,7 +247,7 @@ def drawNetlist(schematic,file_name):
                 if pCell != None and pCell.getType() == 'CELL':
                     # load cell connect to wire cluster before the cell
                     cluster_id = pCell.getAttribute('cluster_id') - 1
-                    cluster_depth = pCell.getAttribute('cluster_depth')
+                    cluster_height = pCell.getAttribute('cluster_height')
 
                     l_x = pos[load][0]
                     l_y = pos[load][1]
@@ -285,14 +299,85 @@ def drawNetlist(schematic,file_name):
         net_pos_[1] = net_pos_[1]/(len(net.getDrivers()) + len(net.getLoads()))
 
     # draw vertical wires
+    h_wire_map = {}   # keep track of horizontal wires between v_wires
+    h_wire_names_map = {} # { {net} : {cluster_id} : (wire_map[cluster_id], max, min)} }}
     for net,vwires in v_wire_names_map.items():
-        for cluster_id,vw_descript in vwires.items():
+
+        # multiple v_wires need to be connected with h_wire
+        vwire_count=0
+        prev_cluster=0
+        prev_c_y_max=0
+        prev_c_y_min=0
+        prev_c_x   =0
+
+        ordered_vwires = collections.OrderedDict(sorted(vwires.items()))
+
+        for cluster_id,vw_descript in ordered_vwires.items():
+
             c_x = ( schematic.figure_margin
                     + schematic.pin_to_wire
                     + schematic.cell_seperation_x * (cluster_id)
                     + schematic.wire_seperation * (vw_descript[0]) )
             c_y_max = vw_descript[1]
             c_y_min = vw_descript[2]
+
+            vwire_count += 1
+            # draw h_wire if needed
+            if vwire_count > 1:
+                if net in h_wire_names_map:
+                    for hc_id, hw_descript in h_wire_names_map[net].items():
+                        h_x_max = hw_descript[1]
+                        h_x_min = hw_descript[2]
+                        print('not implemented yet')
+#                        if(c_x > h_x_min and cx):
+                else:
+                    # check min_max to see common y for two vwires
+                    sup_min = min(c_y_max, prev_c_y_max)
+                    sup_max = max(c_y_min, prev_c_y_min)
+                    if (sup_max - sup_min) > schematic.cell_seperation_y :
+                        # no need to extend vwire just need to connect
+                        print('not implemented yet')
+                    else:
+                        cluster_height_up   = int(prev_c_y_max / schematic.cell_seperation_y)
+                        cluster_height_down = int(prev_c_y_min / schematic.cell_seperation_y)
+                        if cluster_height_up == cluster_height_down:
+                            print('h wire cluster %d' % cluster_height_up)
+                        else:
+                            hw_cluster = int(cluster_height_down + cluster_height_up)/2
+                            if hw_cluster in h_wire_map:
+                                h_wire_map[hw_cluster] += 1
+                            else:
+                                h_wire_map[hw_cluster] = 1
+
+                            hw_y = (hw_cluster * schematic.cell_seperation_y
+                                    - 0.5*schematic.cell_seperation_y
+                                    + schematic.wire_seperation * h_wire_map[hw_cluster] )
+                            hw_x_min = prev_c_x
+                            hw_x_max = c_x
+
+                            h_wire_names_map[net] = { hw_cluster : (h_wire_map[hw_cluster], hw_x_max, hw_x_min) }
+
+                            # extend vwire if needed IMPORTANT: new change is not stored in dictionary
+                            if hw_y > c_y_max:
+                                c_y_max = hw_y
+                            elif hw_y < c_y_min:
+                                c_y_min = hw_y
+                            # plot horizontal wire
+                            plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+
+
+                        #if prev_c_y_min
+                        print('not implemented yet')
+
+
+
+            # update prev_cluster
+            prev_cluster = cluster_id
+            prev_c_y_max = c_y_max
+            prev_c_y_min = c_y_min
+            prev_c_x     = c_x
+
+            # plot vertical wire
             plt.plot([c_x,c_x],[c_y_max,c_y_min],net.getAttribute('wire_color'))
 
     # placing output ports as a column in righ hand end
@@ -323,6 +408,7 @@ def drawNetlist(schematic,file_name):
     nx.draw_networkx_labels(netlist._graph,pos, labels=schematic.labels)
 
 
+    plt.axis('equal')
     plt.savefig(file_name,bbox_inches="tight")
     pylab.close()
     del fig

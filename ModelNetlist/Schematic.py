@@ -16,7 +16,7 @@ class Schematic:
         self.figure_dpi        = 80
         self.figure_margin     = 10
         self.cell_seperation_x = 8
-        self.cell_seperation_y = 8
+        self.cell_seperation_y = 5
         self.cell_to_pin       = 1
         self.pin_seperation    = 0.5
         self.pin_to_wire       = 4
