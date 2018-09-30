@@ -221,7 +221,7 @@ def drawNetlist(schematic,file_name):
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([d_x,vw_x],[d_y,d_y],net_color)
                         else:
-                            vw = v_wire_names_map[net][cluster_id];
+                            vw = v_wire_names_map[net][cluster_id]
                             vw_max = max(vw[1],d_y)
                             vw_min = min(vw[2],d_y)
 
@@ -280,7 +280,7 @@ def drawNetlist(schematic,file_name):
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([vw_x,l_x],[l_y,l_y],net_color)
                         else:
-                            vw = v_wire_names_map[net][cluster_id];
+                            vw = v_wire_names_map[net][cluster_id]
                             vw_max = max(vw[1],l_y)
                             vw_min = min(vw[2],l_y)
 
@@ -300,7 +300,7 @@ def drawNetlist(schematic,file_name):
 
     # draw vertical wires
     h_wire_map = {}   # keep track of horizontal wires between v_wires
-    h_wire_names_map = {} # { {net} : {cluster_id} : (wire_map[cluster_id], max, min)} }}
+    h_wire_names_map = {} # { {net} : {cluster_height} : (wire_map[cluster_height], max, min)} }}
     for net,vwires in v_wire_names_map.items():
 
         # multiple v_wires need to be connected with h_wire
@@ -325,37 +325,83 @@ def drawNetlist(schematic,file_name):
             # draw h_wire if needed
             if vwire_count > 1:
                 if net in h_wire_names_map:
-                    for hc_id, hw_descript in h_wire_names_map[net].items():
-                        h_x_max = hw_descript[1]
-                        h_x_min = hw_descript[2]
-                        print('not implemented yet')
-#                        if(c_x > h_x_min and cx):
+                    for hc_height, hw_descript in h_wire_names_map[net].items():
+                        hw_x_max = hw_descript[1]
+                        hw_x_min = hw_descript[2]
+                        hw_y     = (hc_height * schematic.cell_seperation_y
+                                    + 0.5 * schematic.cell_seperation_y
+                                    + schematic.wire_seperation * hw_descript[0])
+                        h_wire_names_map[net][hc_height] = (hw_descript[0], hw_x_min, c_x)
+                        plt.plot([hw_x_max, c_x],[hw_y, hw_y],net.getAttribute('wire_color'))
+
+                        # IMPORTANT: below changes are not stored in dicitonary
+                        if hw_y > c_y_max:
+                            c_y_max = hw_y
+                        elif hw_y < c_y_min:
+                            c_y_min = hw_y
+
                 else:
                     # check min_max to see common y for two vwires
                     sup_min = min(c_y_max, prev_c_y_max)
                     sup_max = max(c_y_min, prev_c_y_min)
-                    if (sup_max - sup_min) > schematic.cell_seperation_y :
-                        # no need to extend vwire just need to connect
-                        print('not implemented yet')
+                    if prev_c_y_min > c_y_max :
+                        hw_cluster_height = int(prev_c_y_min / schematic.cell_seperation_y)
+                        if hw_cluster_height in h_wire_map:
+                            h_wire_map[hw_cluster_height] += 1
+                        else:
+                            h_wire_map[hw_cluster_height] = 1
+
+                        hw_y = (hw_cluster_height * schematic.cell_seperation_y
+                                + 0.5*schematic.cell_seperation_y
+                                + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
+                        hw_x_min = prev_c_x
+                        hw_x_max = c_x
+                        h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
+                        # plot horizontal wire
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+
+                        # IMPORTANT: below extension is not stored in dictionary
+                        c_y_max = hw_y
+
+                    elif prev_c_y_max < c_y_min :
+                        hw_cluster_height = int(prev_c_y_min / schematic.cell_seperation_y)
+                        if hw_cluster_height in h_wire_map:
+                            h_wire_map[hw_cluster_height] += 1
+                        else:
+                            h_wire_map[hw_cluster_height] = 1
+
+                        hw_y = (hw_cluster_height * schematic.cell_seperation_y
+                                + 0.5*schematic.cell_seperation_y
+                                + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
+                        hw_x_min = prev_c_x
+                        hw_x_max = c_x
+                        h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
+                        # plot horizontal wire
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+
+                        # IMPORTANT: below extension is not stored in dictionary
+                        c_y_min = hw_y
+
                     else:
                         cluster_height_up   = int(prev_c_y_max / schematic.cell_seperation_y)
                         cluster_height_down = int(prev_c_y_min / schematic.cell_seperation_y)
                         if cluster_height_up == cluster_height_down:
-                            print('h wire cluster %d' % cluster_height_up)
+                            shout('WARN', 'h wire cluster %d' % cluster_height_up)
+                            shout('WARN', 'Not implemented yet')
                         else:
-                            hw_cluster = int(cluster_height_down + cluster_height_up)/2
-                            if hw_cluster in h_wire_map:
-                                h_wire_map[hw_cluster] += 1
+                            hw_cluster_height = int((cluster_height_down + cluster_height_up)/2)
+                            if hw_cluster_height in h_wire_map:
+                                h_wire_map[hw_cluster_height] += 1
                             else:
-                                h_wire_map[hw_cluster] = 1
+                                h_wire_map[hw_cluster_height] = 1
 
-                            hw_y = (hw_cluster * schematic.cell_seperation_y
-                                    - 0.5*schematic.cell_seperation_y
-                                    + schematic.wire_seperation * h_wire_map[hw_cluster] )
+                            hw_y = (hw_cluster_height * schematic.cell_seperation_y
+                                    + 0.5*schematic.cell_seperation_y
+                                    + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
                             hw_x_min = prev_c_x
                             hw_x_max = c_x
 
-                            h_wire_names_map[net] = { hw_cluster : (h_wire_map[hw_cluster], hw_x_max, hw_x_min) }
+                            h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
 
                             # extend vwire if needed IMPORTANT: new change is not stored in dictionary
                             if hw_y > c_y_max:
