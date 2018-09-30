@@ -19,9 +19,9 @@ class Schematic:
         self.cell_seperation_y = 5
         self.cell_to_pin       = 1
         self.pin_seperation    = 0.5
-        self.pin_to_wire       = 4
         self.wire_width        = 1
         self.wire_seperation   = 0.5
+        self.wire_split        = 0.2
         self.wire_color        = 'auto'
         self.port_seperation   = 4
         self.auto_scale        = True

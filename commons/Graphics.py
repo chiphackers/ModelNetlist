@@ -202,7 +202,7 @@ def drawNetlist(schematic,file_name):
                         v_wire_names_map[net] = {cluster_id : (v_wire_map[cluster_id], d_y, d_y)}
                         # draw wire to vertical wire
                         vw_x = ( schematic.figure_margin
-                                + schematic.pin_to_wire
+                                + schematic.cell_seperation_x * schematic.wire_split
                                 + schematic.cell_seperation_x * cluster_id
                                 + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                         plt.plot([d_x,vw_x],[d_y,d_y],net_color)
@@ -216,7 +216,7 @@ def drawNetlist(schematic,file_name):
                             v_wire_names_map[net][cluster_id] = (v_wire_map[cluster_id], d_y, d_y)
                             # draw wire to vertical wire
                             vw_x = ( schematic.figure_margin
-                                    + schematic.pin_to_wire
+                                    + schematic.cell_seperation_x * schematic.wire_split
                                     + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([d_x,vw_x],[d_y,d_y],net_color)
@@ -228,7 +228,7 @@ def drawNetlist(schematic,file_name):
                             v_wire_names_map[net][cluster_id] = (vw[0], vw_max, vw_min)
                             # draw wire to vertical wire
                             vw_x = ( schematic.figure_margin
-                                    + schematic.pin_to_wire
+                                    + schematic.cell_seperation_x * schematic.wire_split
                                     + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([d_x,vw_x],[d_y,d_y],net_color)
@@ -261,7 +261,7 @@ def drawNetlist(schematic,file_name):
                         v_wire_names_map[net] = {cluster_id : (v_wire_map[cluster_id], l_y, l_y)}
                         # draw wire to vertical wire
                         vw_x = ( schematic.figure_margin
-                                + schematic.pin_to_wire
+                                + schematic.cell_seperation_x * schematic.wire_split
                                 + schematic.cell_seperation_x * cluster_id
                                 + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                         plt.plot([vw_x,l_x],[l_y,l_y],net_color)
@@ -275,7 +275,7 @@ def drawNetlist(schematic,file_name):
                             v_wire_names_map[net][cluster_id] = (v_wire_map[cluster_id], l_y, l_y)
                             # draw wire to vertical wire
                             vw_x = ( schematic.figure_margin
-                                    + schematic.pin_to_wire
+                                    + schematic.cell_seperation_x * schematic.wire_split
                                     + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([vw_x,l_x],[l_y,l_y],net_color)
@@ -287,7 +287,7 @@ def drawNetlist(schematic,file_name):
                             v_wire_names_map[net][cluster_id] = (vw[0], vw_max, vw_min)
                             # draw wire to vertical wire
                             vw_x = ( schematic.figure_margin
-                                    + schematic.pin_to_wire
+                                    + schematic.cell_seperation_x * schematic.wire_split
                                     + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([vw_x,l_x],[l_y,l_y],net_color)
@@ -315,7 +315,7 @@ def drawNetlist(schematic,file_name):
         for cluster_id,vw_descript in ordered_vwires.items():
 
             c_x = ( schematic.figure_margin
-                    + schematic.pin_to_wire
+                    + schematic.cell_seperation_x * schematic.wire_split
                     + schematic.cell_seperation_x * (cluster_id)
                     + schematic.wire_seperation * (vw_descript[0]) )
             c_y_max = vw_descript[1]
@@ -329,7 +329,7 @@ def drawNetlist(schematic,file_name):
                         hw_x_max = hw_descript[1]
                         hw_x_min = hw_descript[2]
                         hw_y     = (hc_height * schematic.cell_seperation_y
-                                    + 0.5 * schematic.cell_seperation_y
+                                    + schematic.wire_split * schematic.cell_seperation_y
                                     + schematic.wire_seperation * hw_descript[0])
                         h_wire_names_map[net][hc_height] = (hw_descript[0], hw_x_min, c_x)
                         plt.plot([hw_x_max, c_x],[hw_y, hw_y],net.getAttribute('wire_color'))
@@ -352,7 +352,7 @@ def drawNetlist(schematic,file_name):
                             h_wire_map[hw_cluster_height] = 1
 
                         hw_y = (hw_cluster_height * schematic.cell_seperation_y
-                                + 0.5*schematic.cell_seperation_y
+                                + schematic.wire_split * schematic.cell_seperation_y
                                 + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
                         hw_x_min = prev_c_x
                         hw_x_max = c_x
@@ -371,7 +371,7 @@ def drawNetlist(schematic,file_name):
                             h_wire_map[hw_cluster_height] = 1
 
                         hw_y = (hw_cluster_height * schematic.cell_seperation_y
-                                + 0.5*schematic.cell_seperation_y
+                                + schematic.wire_split * schematic.cell_seperation_y
                                 + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
                         hw_x_min = prev_c_x
                         hw_x_max = c_x
@@ -396,7 +396,7 @@ def drawNetlist(schematic,file_name):
                                 h_wire_map[hw_cluster_height] = 1
 
                             hw_y = (hw_cluster_height * schematic.cell_seperation_y
-                                    + 0.5*schematic.cell_seperation_y
+                                    + schematic.wire_split * schematic.cell_seperation_y
                                     + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
                             hw_x_min = prev_c_x
                             hw_x_max = c_x
