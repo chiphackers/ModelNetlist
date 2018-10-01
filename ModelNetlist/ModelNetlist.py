@@ -12,6 +12,8 @@ class ModelNetlist(nlNode):
         super().__init__('NETLIST', name, None)
         self._graph = nx.Graph()
         self._ports = { 'in' : [], 'out' : [], 'bi' : [] }
+        self._gateList = []
+        self._netList  = []
 
     #########################################
     ### APIs to add instances to netlist  ###
@@ -32,6 +34,13 @@ class ModelNetlist(nlNode):
         self._ports[direction].append(port)
         port.setAttribute('port', direction)
         self._graph.add_node(port)
+
+    # Instead of calling above APIs for each cell/net call below API
+    def build(self):
+        for gate in self._gateList:
+            self.addCell(gate)
+        for net in self._netList:
+            self.addNet(net)
 
     #########################################
     ### APIs to access netlist items      ###

@@ -11,7 +11,7 @@ class Net(nlNode):
         self._drivers = []
         self._loads = []
         Net.inst += 1
-
+        parent._netList.append(self)
 
     def addLoad(self, load):
         self._loads.append(load)

@@ -8,15 +8,15 @@ class Cell(nlNode):
     def __init__(self, name, parent, function, inputs, outputs):
         super().__init__('CELL', name, parent)
         self._function = function
-        if len(inputs) > 0 :
+        if len(inputs) > 0 and len(outputs) > 0 :
             self._inputs = inputs
-        else:
-            shout('ERROR','inputs list should contain at least one element')
-
-        if len(outputs) > 0 :
             self._outputs = outputs
+            parent._gateList.append(self)
         else:
-            shout('ERROR','outputs list should contain at least one element')
+            if len(inputs) <= 0 :
+                shout('ERROR','inputs list should contain at least one element')
+            else :
+                shout('ERROR','outputs list should contain at least one element')
 
     def getInputs(self):
         return self._inputs
