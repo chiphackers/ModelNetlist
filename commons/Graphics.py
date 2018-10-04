@@ -35,6 +35,54 @@ def drawNetlist(schematic,file_name):
         loc[1] = schematic.port_seperation * portIndex
         portIndex += 1
 
+        net = iPort.getConnectedNet()
+        if not net is None:
+            for load in net.getLoads():
+                load.setAttribute('port_driven',True)
+
+    # Do a DFS to find feedback path and mark them for ignoring in topological sort
+    for gate in schematic.gateList :
+
+        if not gate.getAttribute('fb_search') is None:
+            continue
+
+        gate.setAttribute('fb_search',1)
+        dfs_stack = [gate]
+        dfs_parent = { gate : None }
+        while len(dfs_stack) > 0:
+            cell = dfs_stack.pop()
+            if not cell is None:
+                for out in cell.getOutputs():
+                    cNet = out.getConnectedNet()
+                    if cNet is not None:
+                        for cLoad in cNet.getLoads():
+                            nCell = cLoad.getParent()
+                            if nCell is None or nCell.getType() != 'CELL':
+                                continue
+
+                            if not nCell in dfs_parent:
+                                # if nCell already has fb_search it has been been searched for loops before
+                                if not nCell.getAttribute('fb_search') is None:
+                                    continue
+                                else:
+                                    gate.setAttribute('fb_search',1)
+
+                                dfs_parent[nCell] = cell
+                                dfs_stack.append(nCell)
+                            else:
+                                # already discvored cell. check whether cyclic
+                                is_cyclic = False
+                                backtrace = cell
+                                while backtrace != None:
+                                    if backtrace == nCell:
+                                        is_cyclic = True
+                                        break
+                                    else:
+                                        backtrace = dfs_parent[backtrace]
+
+                                if is_cyclic :
+                                    cLoad.setAttribute('feedback_net', str(cNet))
+
     # Create cell edges
     incomming_edges = {}
     outgoing_edges = {}
@@ -47,6 +95,10 @@ def drawNetlist(schematic,file_name):
         inputs = gate.getInputs()
         has_incomming = False
         for i in inputs:
+            # feedbacks are ignored for topological sorting
+            if i.getAttribute('feedback_net') != None:
+                shout('INFO','feedback net found %s' % i.getConnectedNet())
+                continue
             net = i.getConnectedNet()
             if not net :
                 continue
@@ -187,6 +239,7 @@ def drawNetlist(schematic,file_name):
             if driver.getType() == 'PIN':
                 pCell = driver.getParent()
                 if pCell != None and pCell.getType() == 'CELL':
+
                     cluster_id = pCell.getAttribute('cluster_id')
                     cluster_height = pCell.getAttribute('cluster_height')
 
@@ -354,11 +407,19 @@ def drawNetlist(schematic,file_name):
                         hw_y = (hw_cluster_height * schematic.cell_seperation_y
                                 + schematic.wire_split * schematic.cell_seperation_y
                                 + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
+
                         hw_x_min = prev_c_x
                         hw_x_max = c_x
                         h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
                         # plot horizontal wire
                         plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+                        # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
+                        if prev_c_y_max < hw_y:
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('wire_color'))
+                            prev_c_y_max = hw_y
+                        elif prev_c_y_min > hw_y:
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('wire_color'))
+                            prev_c_y_min = hw_y
 
                         # IMPORTANT: below extension is not stored in dictionary
                         c_y_max = hw_y
@@ -378,6 +439,13 @@ def drawNetlist(schematic,file_name):
                         h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
                         # plot horizontal wire
                         plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+                        # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
+                        if prev_c_y_max < hw_y:
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('wire_color'))
+                            prev_c_y_max = hw_y
+                        elif prev_c_y_min > hw_y:
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('wire_color'))
+                            prev_c_y_min = hw_y
 
                         # IMPORTANT: below extension is not stored in dictionary
                         c_y_min = hw_y
@@ -410,11 +478,13 @@ def drawNetlist(schematic,file_name):
                                 c_y_min = hw_y
                             # plot horizontal wire
                             plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
-
-
-                        #if prev_c_y_min
-                        print('not implemented yet')
-
+                            # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
+                            if prev_c_y_max < hw_y:
+                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('wire_color'))
+                                prev_c_y_max = hw_y
+                            elif prev_c_y_min > hw_y:
+                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('wire_color'))
+                                prev_c_y_min = hw_y
 
 
             # update prev_cluster

@@ -25,9 +25,9 @@ class nlNode:
         return self._parent
 
     def getAttribute(self, attrib):
-        try:
+        if attrib in self._attributes:
             return self._attributes[attrib]
-        except:
+        else:
             return None
 
     def setType(self, type):
