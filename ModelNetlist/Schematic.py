@@ -8,7 +8,6 @@ class Schematic:
         self.pinList  = []
         self.netList  = []
         self.labels        = {}
-        self._gateLoop()
 
         # Graphics properties
         self.figure_height     = 20
@@ -26,19 +25,33 @@ class Schematic:
         self.port_seperation   = 4
         self.auto_scale        = True
 
-    def _gateLoop(self):
+        # Show labels
+        self.cell_labels = True
+        self.pin_labels  = True
+        self.port_labels = True
+        self.net_labels  = False
+
+    def gateLoop(self):
         # GATE Loop
         for node in self.netlist._graph.nodes():
             if node.getType() == 'PIN':
                 pin = node
                 self.pinList.append(pin)
-                self.labels[pin] = pin.getName()
+                if self.pin_labels:
+                    self.labels[pin] = pin.getName()
             elif node.getType() == 'NET':
                 net = node
                 self.netList.append(net)
-                self.labels[net] = net.getName()
+                if self.net_labels:
+                    self.labels[net] = net.getName()
             elif node.getType() == 'CELL':
                 gate = node
                 self.gateList.append(gate)
-                self.labels[gate] = gate.getName()
+                if self.cell_labels:
+                    self.labels[gate] = gate.getName()
+
+        if not self.pin_labels:
+            for pKey,pVal in self.netlist._ports.items():
+                for port in pVal:
+                    self.labels[port] = port.getName()
 

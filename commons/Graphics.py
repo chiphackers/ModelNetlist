@@ -18,6 +18,8 @@ def plotColor(color):
 
 def drawNetlist(schematic,file_name):
 
+    schematic.gateLoop()
+
     netlist = schematic.netlist
 
     #initialze Figure
