@@ -33,6 +33,8 @@ def drawNetlist(schematic,file_name):
     # Below maps are storing data on vertical wires
     v_wire_map = {}   # keep track of vertical wire id between clusters
     v_wire_names_map = {} # { {net} : {cluster_id : (wire_map[cluster_id], max, min)} }
+    h_wire_map = {}   # keep track of horizontal wires between v_wires
+    h_wire_names_map = {} # { {net} : {cluster_height} : (wire_map[cluster_height], max, min)} }}
     last_cluster = 0
 
     # Placing input ports as a column at the left end
@@ -244,7 +246,6 @@ def drawNetlist(schematic,file_name):
         else:
             shout('WARN','schematic is wider than specified. Increase schematic.figure_width or use schematic.auto_scale')
 
-    shout('INFO','Last cluster %d'%last_cluster)
     portIndex = 1
     for oPort in netlist.getOutputPorts():
         loc = pos[oPort]
@@ -260,8 +261,10 @@ def drawNetlist(schematic,file_name):
             else:
                 v_wire_map[last_cluster] += 1
 
-            if not net in v_wire_names_map or not last_cluster in v_wire_names_map[net]:
+            if not net in v_wire_names_map:
                 v_wire_names_map[net] = { last_cluster : (v_wire_map[last_cluster], loc[1], loc[1]) }
+            elif not last_cluster in v_wire_names_map[net]:
+                v_wire_names_map[net][last_cluster] = (v_wire_map[last_cluster], loc[1], loc[1])
             else:
                 vwire = v_wire_names_map[net][last_cluster]
                 vmax = max(loc[1], vwire[1])
@@ -279,8 +282,52 @@ def drawNetlist(schematic,file_name):
                     + schematic.wire_seperation * v_wire_names_map[net][last_cluster][0])
             plt.plot([vw_x, loc[0]],[loc[1],loc[1]],net.getAttribute('wire_color'))
 
-            for load in net.getLoads():
-                load.setAttribute('port_driven',True)
+    for oPort in netlist.getOutputPorts():
+        if not oPort.getAttribute('port_driven') is None:
+            # input is directly connected to output. h_wire and v_wire need to be drawn
+            net = oPort.getConnectedNet()
+            if net.getAttribute('wire_color') is None:
+                net_color = plotColor(schematic.wire_color)
+                net.setAttribute('wire_color',net_color)
+
+            height = -1
+            hw_max = -1
+            hw_min = -1
+
+            if not net in h_wire_names_map:
+                if not 0 in h_wire_map:
+                    h_wire_map[0] = 1
+                else:
+                    h_wire_map[0] += 1
+                h_wire_names_map[net] = { 0 : (h_wire_map[0], hw_max, hw_min) }
+            else:
+                hw_descript = h_wire_names_map[net][0]
+                hw_max = hw_descript[1]
+                hw_min = hw_descript[2]
+
+            hw_y = (schematic.wire_split * schematic.cell_seperation_y
+                    + schematic.wire_seperation * h_wire_map[0] )
+
+            v_wire = v_wire_names_map[net]
+            for cid, vw_descript in v_wire.items():
+                vw_x = ( schematic.figure_margin
+                        + schematic.cell_seperation_x * cid
+                        + schematic.cell_seperation_x * schematic.wire_split
+                        + schematic.wire_seperation * vw_descript[0])
+                # draw vertical wire
+                if vw_descript[2] > hw_y:
+                    plt.plot([vw_x, vw_x], [vw_descript[1], hw_y], net.getAttribute('wire_color'))
+                else:
+                    plt.plot([vw_x, vw_x], [vw_descript[1], vw_descript[2]], net.getAttribute('wire_color'))
+
+                if vw_x > hw_max:
+                    hw_max = vw_x
+                if vw_x < hw_min or hw_min < 0:
+                    hw_min = vw_x
+
+            # draw horizontal wire
+            plt.plot([hw_min, hw_max], [hw_y, hw_y], net.getAttribute('wire_color'))
+            h_wire_names_map[net][0] = (h_wire_map[0], hw_max, hw_min)
 
 
     # placging nets
@@ -426,8 +473,6 @@ def drawNetlist(schematic,file_name):
         net_pos_[1] = net_pos_[1]/(len(net.getDrivers()) + len(net.getLoads()))
 
     # draw vertical wires
-    h_wire_map = {}   # keep track of horizontal wires between v_wires
-    h_wire_names_map = {} # { {net} : {cluster_height} : (wire_map[cluster_height], max, min)} }}
     for net,vwires in v_wire_names_map.items():
 
         # multiple v_wires need to be connected with h_wire
