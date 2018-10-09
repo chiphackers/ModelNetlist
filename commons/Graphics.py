@@ -52,14 +52,14 @@ def drawNetlist(schematic,file_name):
             v_wire_map[0] += 1
             v_wire_names_map[net] = { 0 : (v_wire_map[0], loc[1], loc[1]) }
 
-            if net.getAttribute('wire_color') is None:
+            if net.getAttribute('color') is None:
                 net_color = plotColor(schematic.wire_color)
-                net.setAttribute('wire_color',net_color)
+                net.setAttribute('color',net_color)
 
             vw_x = ( schematic.figure_margin
                     + schematic.cell_seperation_x * schematic.wire_split
                     + schematic.wire_seperation * v_wire_names_map[net][0][0])
-            plt.plot([loc[0],vw_x],[loc[1],loc[1]],net.getAttribute('wire_color'))
+            plt.plot([loc[0],vw_x],[loc[1],loc[1]],net.getAttribute('color'))
 
             for load in net.getLoads():
                 load.setAttribute('port_driven',True)
@@ -272,23 +272,23 @@ def drawNetlist(schematic,file_name):
                 v_wire_names_map[net] = { last_cluster : (v_wire_map[last_cluster], vmax, vmin) }
 
 
-            if net.getAttribute('wire_color') is None:
+            if net.getAttribute('color') is None:
                 net_color = plotColor(schematic.wire_color)
-                net.setAttribute('wire_color',net_color)
+                net.setAttribute('color',net_color)
 
             vw_x = ( schematic.figure_margin
                     + schematic.cell_seperation_x * last_cluster
                     + schematic.cell_seperation_x * schematic.wire_split
                     + schematic.wire_seperation * v_wire_names_map[net][last_cluster][0])
-            plt.plot([vw_x, loc[0]],[loc[1],loc[1]],net.getAttribute('wire_color'))
+            plt.plot([vw_x, loc[0]],[loc[1],loc[1]],net.getAttribute('color'))
 
     for oPort in netlist.getOutputPorts():
         if not oPort.getAttribute('port_driven') is None:
             # input is directly connected to output. h_wire and v_wire need to be drawn
             net = oPort.getConnectedNet()
-            if net.getAttribute('wire_color') is None:
+            if net.getAttribute('color') is None:
                 net_color = plotColor(schematic.wire_color)
-                net.setAttribute('wire_color',net_color)
+                net.setAttribute('color',net_color)
 
             height = -1
             hw_max = -1
@@ -316,9 +316,9 @@ def drawNetlist(schematic,file_name):
                         + schematic.wire_seperation * vw_descript[0])
                 # draw vertical wire
                 if vw_descript[2] > hw_y:
-                    plt.plot([vw_x, vw_x], [vw_descript[1], hw_y], net.getAttribute('wire_color'))
+                    plt.plot([vw_x, vw_x], [vw_descript[1], hw_y], net.getAttribute('color'))
                 else:
-                    plt.plot([vw_x, vw_x], [vw_descript[1], vw_descript[2]], net.getAttribute('wire_color'))
+                    plt.plot([vw_x, vw_x], [vw_descript[1], vw_descript[2]], net.getAttribute('color'))
 
                 if vw_x > hw_max:
                     hw_max = vw_x
@@ -326,7 +326,7 @@ def drawNetlist(schematic,file_name):
                     hw_min = vw_x
 
             # draw horizontal wire
-            plt.plot([hw_min, hw_max], [hw_y, hw_y], net.getAttribute('wire_color'))
+            plt.plot([hw_min, hw_max], [hw_y, hw_y], net.getAttribute('color'))
             h_wire_names_map[net][0] = (h_wire_map[0], hw_max, hw_min)
 
 
@@ -347,10 +347,10 @@ def drawNetlist(schematic,file_name):
     #####################################################################
     for net in schematic.netList:
 
-        net_color = net.getAttribute('wire_color')
+        net_color = net.getAttribute('color')
         if net_color is None:
             net_color = plotColor(schematic.wire_color)
-            net.setAttribute('wire_color',net_color)
+            net.setAttribute('color',net_color)
 
         net_pos_ = pos[net]
         net_pos_[0] = 0
@@ -504,7 +504,7 @@ def drawNetlist(schematic,file_name):
                                     + schematic.wire_split * schematic.cell_seperation_y
                                     + schematic.wire_seperation * hw_descript[0])
                         h_wire_names_map[net][hc_height] = (hw_descript[0], hw_x_min, c_x)
-                        plt.plot([hw_x_max, c_x],[hw_y, hw_y],net.getAttribute('wire_color'))
+                        plt.plot([hw_x_max, c_x],[hw_y, hw_y],net.getAttribute('color'))
 
                         # IMPORTANT: below changes are not stored in dicitonary
                         if hw_y > c_y_max:
@@ -531,13 +531,13 @@ def drawNetlist(schematic,file_name):
                         hw_x_max = c_x
                         h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
                         # plot horizontal wire
-                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
                         # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
                         if prev_c_y_max < hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('wire_color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
                             prev_c_y_max = hw_y
                         elif prev_c_y_min > hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('wire_color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
                             prev_c_y_min = hw_y
 
                         # IMPORTANT: below extension is not stored in dictionary
@@ -557,13 +557,13 @@ def drawNetlist(schematic,file_name):
                         hw_x_max = c_x
                         h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
                         # plot horizontal wire
-                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
                         # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
                         if prev_c_y_max < hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('wire_color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
                             prev_c_y_max = hw_y
                         elif prev_c_y_min > hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('wire_color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
                             prev_c_y_min = hw_y
 
                         # IMPORTANT: below extension is not stored in dictionary
@@ -596,13 +596,13 @@ def drawNetlist(schematic,file_name):
                             elif hw_y < c_y_min:
                                 c_y_min = hw_y
                             # plot horizontal wire
-                            plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('wire_color'))
+                            plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
                             # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
                             if prev_c_y_max < hw_y:
-                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('wire_color'))
+                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
                                 prev_c_y_max = hw_y
                             elif prev_c_y_min > hw_y:
-                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('wire_color'))
+                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
                                 prev_c_y_min = hw_y
 
 
@@ -613,7 +613,7 @@ def drawNetlist(schematic,file_name):
             prev_c_x     = c_x
 
             # plot vertical wire
-            plt.plot([c_x,c_x],[c_y_max,c_y_min],net.getAttribute('wire_color'))
+            plt.plot([c_x,c_x],[c_y_max,c_y_min],net.getAttribute('color'))
 
     # draw pins
     nx.draw_networkx_nodes(netlist._graph, pos, node_shape='>', node_size=600, node_color='c', nodelist=schematic.pinList)
