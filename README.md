@@ -31,8 +31,15 @@ export PYTHONPATH="<clone directory>/ModelNetlist"
 
 ```python
 from ModelNetlist import *
+from commons import *
 
 netlist = ModelNetlist('top1')
+
+netlist.addPort('in','in_0')
+netlist.addPort('in','in_1')
+netlist.addPort('in','in_2')
+
+netlist.addPort('out','out_0')
 
 and1 = AND2(netlist)
 netlist.addCell(and1)
@@ -43,18 +50,38 @@ netlist.addCell(or1)
 inv1 = INV(netlist)
 netlist.addCell(inv1)
 
+net0 = Net(netlist)
+net0.addDriver(netlist.getPort('in_0'))
+net0.addLoad(and1.input(0))
+netlist.addNet(net0)
+
 net1 = Net(netlist)
-net1.addDriver(and1.output(0))
-net1.addLoad(or1.input(0))
+net1.addDriver(netlist.getPort('in_1'))
+net1.addLoad(and1.input(1))
 netlist.addNet(net1)
 
 net2 = Net(netlist)
-net2.addDriver(or1.output(0))
+net2.addDriver(netlist.getPort('in_2'))
 net2.addLoad(inv1.input(0))
 netlist.addNet(net2)
 
-netlist.saveGraph('schema.png')
+net3 = Net(netlist)
+net3.addDriver(and1.output(0))
+net3.addLoad(or1.input(0))
+netlist.addNet(net3)
 
+net4 = Net(netlist)
+net4.addDriver(inv1.output(0))
+net4.addLoad(or1.input(1))
+netlist.addNet(net4)
+
+net5 = Net(netlist)
+net5.addDriver(or1.output(0))
+net5.addLoad(netlist.getPort('out_0'))
+netlist.addNet(net5)
+
+schema = Schematic(netlist)
+drawNetlist(schema,'schema.png')
 ```
 
 Above script will create a ModelNetlist and save the diagram in a file called schema.png which will look like below.
