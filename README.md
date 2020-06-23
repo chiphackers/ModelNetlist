@@ -86,7 +86,7 @@ drawNetlist(schema,'schema.png')
 
 Above script will create a ModelNetlist and save the diagram in a file called schema.png which will look like below.
 
-![schema.png](https://github.com/chiphackers/ModelNetlist/schema.png)
+![schema.png](https://github.com/chiphackers/ModelNetlist/blob/master/schema.png)
 
 
 
