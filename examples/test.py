@@ -1,7 +1,7 @@
-from SimpleNetlist import *
+from ModelNetlist import *
 from commons import *
 
-netlist = SimpleNetlist('top1')
+netlist = ModelNetlist('top1')
 
 netlist.addPort('in','in1')
 netlist.addPort('in','in2')
@@ -19,7 +19,7 @@ or1 = OR2(netlist)
 inv1 = INV(netlist)
 and2= AND2(netlist)
 or2 = OR2(netlist)
-   
+
 netlist.addCell(and1)
 netlist.addCell(or1)
 netlist.addCell(inv1)
@@ -49,5 +49,7 @@ net4.addDriver(and2.output(0))
 net4.addLoad(or2.input(0))
 netlist.addNet(net4)
 
-drawNetlist(netlist,'test1.png')
+schematic = Schematic(netlist)
+
+drawNetlist(schematic,'test1.png')
 
