@@ -3,6 +3,7 @@ from random import randint
 from .nlUtils import *
 from .nlNode import *
 from .Cell import *
+from .Net import *
 ##############################################################
 # Main Class : NetList
 ##############################################################
@@ -57,6 +58,12 @@ class ModelNetlist(nlNode):
                 if port.getName() == name:
                     return port
         return None
+
+    def getCells(self):
+        return self._gateList
+
+    def getNets(self):
+        return self._netList
 
     def getNeighbours(self, node):
         return self._graph.neighbors(node)
@@ -143,3 +150,70 @@ class ModelNetlist(nlNode):
         pylab.close()
         del fig
 
+##############################################################
+# Returns a ModelNetlist by reading a gate-level netlist
+##############################################################
+def readVerilogNetlist(verilogNetlist, cellLibList) -> ModelNetlist:
+
+    try:
+        from pyverilog.vparser.parser import parse
+        from pyverilog.vparser.ast import ModuleDef, Decl, Input, Output, InstanceList, Instance, Identifier, Pointer, PortArg, Wire
+    except:
+        shout('ERROR', 'Pyverilog package is required')
+        return None
+    else:
+
+        netlist = None
+        wireMap = {}
+        portMap = {'in':[], 'out':[], 'bi':[]}
+        ast, _ = parse([verilogNetlist])
+        #ast.show()
+        # Loop iterating verilog modules
+        for astChild in ast.description.children():
+            if isinstance(astChild, ModuleDef):
+                # We only consider one top module in a flatten netlist
+                topModule = astChild
+                netlist = ModelNetlist(topModule.name)
+                for modChild in topModule.children():
+                    if isinstance(modChild, Decl):
+                        # Loop iterating Decleartions (i.e., Input, Output, Wires)
+                        for decChild in modChild.children():
+                            decName = str(decChild.name)
+                            if isinstance(decChild, Input):
+                                netlist.addPort('in', decName)
+                                portMap['in'].append(decName)
+                            elif isinstance(decChild, Output):
+                                netlist.addPort('out', decName)
+                                portMap['out'].append(decName)
+                            elif isinstance(decChild, Wire):
+                                net = Net(netlist)
+                                net.setName(decName)
+                                if decName in portMap['in']:
+                                    net.addDriver(netlist.getPort(decName))
+                                elif decName in portMap['out']:
+                                    net.addLoad(netlist.getPort(decName))
+                                wireMap[decName] = net
+                    if isinstance(modChild, InstanceList):
+                        # Loop iterating instances (i.e., gates)
+                        for inst in modChild.children():
+                            if isinstance(inst, Instance):
+                                for lib in cellLibList:
+                                    cell = lib.getCell(inst.module)
+                                    if cell:
+                                        cellInst = cell(netlist)
+                                        for port in inst.portlist:
+                                            portname = str(port.argname)
+                                            # if the port is a bus need to decode the name from a Pointer object
+                                            if isinstance(port.argname, Pointer):
+                                                portname = str(port.argname.var)
+                                            net = wireMap[portname]
+                                            pin = cellInst.getPinByName(str(port.portname))
+                                            if pin in cellInst.getInputs():
+                                                net.addLoad(pin)
+                                            elif pin in cellInst.getOutputs():
+                                                net.addDriver(pin)
+                                            else:
+                                                shout('ERROR', 'Pin {} not found in cell {}'.format(pin, cell))
+
+        netlist.build()
+        return netlist
