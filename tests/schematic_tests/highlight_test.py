@@ -126,6 +126,5 @@ class TestHighlight(unittest.TestCase):
         else:
             shout('INFO','NO path found')
 
-
-        print('hello world')
-
+if __name__ == '__main__':
+    unittest.main()
