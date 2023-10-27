@@ -13,7 +13,7 @@ def shout(severity, message):
     """
     Print messages to standard output
     """
-    if SILENT:
+    if severity == 'SILENT':
         return
 
     if severity == 'WARN':
