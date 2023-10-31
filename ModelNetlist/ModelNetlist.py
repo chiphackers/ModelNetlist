@@ -11,7 +11,7 @@ class ModelNetlist(nlNode):
 
     def __init__(self, name):
         super().__init__('NETLIST', name, None)
-        self._graph = nx.Graph()
+        self._graph = nx.DiGraph()
         self._ports = { 'in' : [], 'out' : [], 'bi' : [] }
         self._gateList = []
         self._netList  = []
