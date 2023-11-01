@@ -330,7 +330,7 @@ def drawNetlist(schematic,file_name):
             h_wire_names_map[net][0] = (h_wire_map[0], hw_max, hw_min)
 
 
-    # placging nets
+    # placing nets
     ######## Model Description using v_wire and h_wire ##################
     #                                                                   #
     #      cluster_1      cluster_2       cluster_3                     #
@@ -616,11 +616,11 @@ def drawNetlist(schematic,file_name):
             plt.plot([c_x,c_x],[c_y_max,c_y_min],net.getAttribute('color'))
 
     # draw pins
-    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='>', node_size=600, node_color='c', nodelist=schematic.pinList)
+    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='>', node_size=schematic.pin_size, node_color='c', nodelist=schematic.pinList)
     # draw cells
-    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='s', node_size=2400, node_color='y', nodelist=schematic.gateList)
+    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='s', node_size=schematic.cell_size, node_color='y', nodelist=schematic.gateList)
     # draw nets
-    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='d', node_size=6, node_color='m', nodelist=schematic.netList)
+    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='d', node_size=1, node_color='m', nodelist=schematic.netList)
 
     #Stop drawing edges because we want to display routes
     #nx.draw_networkx_edges(netlist._graph,pos)
