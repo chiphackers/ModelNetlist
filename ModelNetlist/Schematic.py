@@ -17,6 +17,8 @@ class Schematic:
         self.cell_seperation_x = 8
         self.cell_seperation_y = 5
         self.cell_to_pin       = 1
+        self.cell_size         = 2400
+        self.pin_size          = 600
         self.pin_seperation    = 0.5
         self.wire_width        = 1
         self.wire_seperation   = 0.5
@@ -38,20 +40,27 @@ class Schematic:
                 pin = node
                 self.pinList.append(pin)
                 if self.pin_labels:
-                    self.labels[pin] = pin.getName()
+                    if self.labels.get(pin) is None:
+                        # if a custom label is not set, we will use name as default label
+                        self.labels[pin] = pin.getName()
             elif node.getType() == 'NET':
                 net = node
                 self.netList.append(net)
                 if self.net_labels:
-                    self.labels[net] = net.getName()
+                    if self.labels.get(net) is None:
+                        self.labels[net] = net.getName()
             elif node.getType() == 'CELL':
                 gate = node
                 self.gateList.append(gate)
                 if self.cell_labels:
-                    self.labels[gate] = gate.getName()
+                    if self.labels.get(gate) is None:
+                        self.labels[gate] = gate.getName()
 
         if not self.pin_labels:
             for pKey,pVal in self.netlist._ports.items():
                 for port in pVal:
-                    self.labels[port] = port.getName()
+                    if self.labels.get(port) is None:
+                        self.labels[port] = port.getName()
 
+    def setLabel(self, node, label):
+        self.labels[node] = label
