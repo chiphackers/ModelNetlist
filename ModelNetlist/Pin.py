@@ -13,5 +13,8 @@ class Pin(nlNode):
             shout('WARN', 'Connecting object of type not NET')
         self._connectedNet = net
 
+    def disconnectNet(self):
+        self._connectedNet = None
+
     def getConnectedNet(self):
         return self._connectedNet

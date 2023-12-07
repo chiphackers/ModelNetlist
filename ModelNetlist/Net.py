@@ -8,13 +8,13 @@ class Net(nlNode):
     def __init__(self, parent):
         name = 'NET_%d' % Net.inst
         super().__init__('NET', name, parent)
-        self._drivers = []
-        self._loads = []
+        self._drivers = set()
+        self._loads = set()
         Net.inst += 1
         parent._netList.append(self)
 
     def addLoad(self, load):
-        self._loads.append(load)
+        self._loads.add(load)
         if load.getType() == 'PIN':
             load.connectNet(self)
 
@@ -22,7 +22,7 @@ class Net(nlNode):
         return self._loads
 
     def addDriver(self, driver):
-        self._drivers.append(driver)
+        self._drivers.add(driver)
         if driver.getType() == 'PIN':
             driver.connectNet(self)
 

@@ -36,12 +36,55 @@ class ModelNetlist(nlNode):
         port.setAttribute('port', direction)
         self._graph.add_node(port)
 
+    # Instead of creating Net objects explicitly connect PINs using this API
+    def connect(self, driver, load):
+        if driver.getType() != 'PIN' and load.getType() != 'PIN':
+            shout('ERROR', 'connect(driver_pin, [load_pins]) expects only PIN objects')
+
+        # If the driver already have a net reuse it
+        con_net = driver.getConnectedNet()
+        if not con_net:
+            con_net = load.getConnectedNet()
+        if not con_net:
+            con_net = Net(self)
+        con_net.addLoad(load)
+        con_net.addDriver(driver)
+
     # Instead of calling above APIs for each cell/net call below API
     def build(self):
         for gate in self._gateList:
             self.addCell(gate)
         for net in self._netList:
             self.addNet(net)
+
+    # Method to remove a node from the netlist
+    def remove(self, inst):
+        if inst.getType() == 'CELL':
+            for pIn in inst.getInputs():
+                self.remove(pIn)
+            for pOut in inst.getOutputs():
+                self.remove(pOut)
+            self._gateList.remove(inst)
+        elif inst.getType() == 'NET':
+            for d in inst.getDrivers():
+                d.disconnectNet()
+            for l in inst.getLoads():
+                l.disconnectNet()
+            self._netList.remove(inst)
+        elif inst.getType() == 'PIN':
+            conNet = inst.getConnectedNet()
+            if conNet is not None:
+                if inst in conNet.getDrivers():
+                    conNet.getDrivers().remove(inst)
+                elif inst in conNet.getLoads():
+                    conNet.getLoads().remove(inst)
+            # If the pin is a port of the netlist
+            for k in self._ports.keys():
+                portList = self._ports[k]
+                if inst in portList:
+                    portList.remove(inst)
+
+        self._graph.remove_node(inst)
 
     #########################################
     ### APIs to access netlist items      ###

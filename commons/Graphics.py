@@ -16,6 +16,10 @@ def plotColor(color):
     else:
         return'#%02X%02X%02X' % (random.randint(0,255),random.randint(0,255),random.randint(0,255))
 
+def highlightPath(path, color):
+    for node in path:
+        node.setAttribute('color', color)
+
 def drawNetlist(schematic,file_name):
 
     schematic.gateLoop()
@@ -572,38 +576,35 @@ def drawNetlist(schematic,file_name):
                     else:
                         cluster_height_up   = int(prev_c_y_max / schematic.cell_seperation_y)
                         cluster_height_down = int(prev_c_y_min / schematic.cell_seperation_y)
-                        if cluster_height_up == cluster_height_down:
-                            shout('WARN', 'h wire cluster %d' % cluster_height_up)
-                            shout('WARN', 'Not implemented yet')
+
+                        hw_cluster_height = int((cluster_height_down + cluster_height_up)/2)
+                        if hw_cluster_height in h_wire_map:
+                            h_wire_map[hw_cluster_height] += 1
                         else:
-                            hw_cluster_height = int((cluster_height_down + cluster_height_up)/2)
-                            if hw_cluster_height in h_wire_map:
-                                h_wire_map[hw_cluster_height] += 1
-                            else:
-                                h_wire_map[hw_cluster_height] = 1
+                            h_wire_map[hw_cluster_height] = 1
 
-                            hw_y = (hw_cluster_height * schematic.cell_seperation_y
-                                    + schematic.wire_split * schematic.cell_seperation_y
-                                    + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
-                            hw_x_min = prev_c_x
-                            hw_x_max = c_x
+                        hw_y = (hw_cluster_height * schematic.cell_seperation_y
+                                + schematic.wire_split * schematic.cell_seperation_y
+                                + schematic.wire_seperation * h_wire_map[hw_cluster_height] )
+                        hw_x_min = prev_c_x
+                        hw_x_max = c_x
 
-                            h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
+                        h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
 
-                            # extend vwire if needed IMPORTANT: new change is not stored in dictionary
-                            if hw_y > c_y_max:
-                                c_y_max = hw_y
-                            elif hw_y < c_y_min:
-                                c_y_min = hw_y
-                            # plot horizontal wire
-                            plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
-                            # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
-                            if prev_c_y_max < hw_y:
-                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
-                                prev_c_y_max = hw_y
-                            elif prev_c_y_min > hw_y:
-                                plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
-                                prev_c_y_min = hw_y
+                        # extend vwire if needed IMPORTANT: new change is not stored in dictionary
+                        if hw_y > c_y_max:
+                            c_y_max = hw_y
+                        elif hw_y < c_y_min:
+                            c_y_min = hw_y
+                        # plot horizontal wire
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
+                        # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
+                        if prev_c_y_max < hw_y:
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
+                            prev_c_y_max = hw_y
+                        elif prev_c_y_min > hw_y:
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
+                            prev_c_y_min = hw_y
 
 
             # update prev_cluster
