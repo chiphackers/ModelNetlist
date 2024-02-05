@@ -1,7 +1,7 @@
-from SimpleNetlist import *
+from ModelNetlist import *
 from commons import *
 
-netlist = SimpleNetlist('top')
+netlist = ModelNetlist('top')
 AND2_0=AND2(netlist)
 AND2_0.setAttribute('delay',3)
 AND2_1=AND2(netlist)
@@ -74,4 +74,5 @@ net9.addDriver(AND2_3.output(0))
 net9.addDriver(INV_2.output(0))
 netlist.addNet(net9)
 
+schematic = Schematic(netlist)
 drawNetlist(netlist, 'test.png')

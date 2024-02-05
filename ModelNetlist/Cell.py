@@ -24,6 +24,17 @@ class Cell(nlNode):
         else:
             return self._inputs[index]
 
+    def addInput(self, newInput):
+        if newInput.getType() != 'PIN':
+            shout('ERROR', 'Input is not type PIN')
+
+        newInput.setParent(self)
+        self._inputs.append(newInput)
+        netlist = self.getParent()
+        if netlist:
+            netlist._graph.add_node(newInput)
+            netlist._graph.add_edge(newInput, self)
+
     def getOutputs(self):
         return self._outputs
 
@@ -33,6 +44,17 @@ class Cell(nlNode):
             return None
         else:
             return self._outputs[index]
+
+    def addOutput(self, newOutput):
+        if newOutput.getType() != 'PIN':
+            shout('ERROR', 'Output is not type PIN')
+
+        newOutput.setParent(self)
+        self._outputs.append(newOutput)
+        netlist = self.getParent()
+        if netlist:
+            netlist._graph.add_node(newOutput)
+            netlist._graph.add_edge(newOutput, self)
 
     def getPinByName(self, name):
         for inPin in self._inputs:
