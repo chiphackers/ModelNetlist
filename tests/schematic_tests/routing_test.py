@@ -14,7 +14,6 @@ class TestRouting(unittest.TestCase):
         cls.netlist.build()
         schematic = Schematic(cls.netlist)
         schematic.pin_labels = False
-        schematic.pin_seperation *= 4
         drawNetlist(schematic,'routing_test.png')
         print('Completed routing tests. Please check routing_test.png for results.')
 

@@ -1,4 +1,5 @@
 import sys
+import math
 import random
 import collections
 import matplotlib
@@ -29,18 +30,20 @@ def drawNetlist(schematic,file_name):
     #initialze Figure
     plt.figure(num=None, figsize=(schematic.figure_width, schematic.figure_height), dpi=schematic.figure_dpi)
     plt.axis('off')
-    fig = plt.figure(1, figsize=(schematic.figure_width,schematic.figure_height))
+    fig = plt.figure(1, figsize=(schematic.figure_width,schematic.figure_height), dpi=schematic.figure_dpi)
 
     diagWidth = schematic.figure_width
     pos = nx.spring_layout(netlist._graph)
 
+    # Step 1: Creating dictionaries (maps)
     # Below maps are storing data on vertical wires
     v_wire_map = {}   # keep track of vertical wire id between clusters
-    v_wire_names_map = {} # { {net} : {cluster_id : (wire_map[cluster_id], max, min)} }
+    v_wire_names_map = {} # { {net} : {cluster_id : (v_wire_map[cluster_id], max, min)} }
     h_wire_map = {}   # keep track of horizontal wires between v_wires
     h_wire_names_map = {} # { {net} : {cluster_height} : (wire_map[cluster_height], max, min)} }}
     last_cluster = 0
 
+    # Step 2: Place the input ports based on parameters in the Schematic object
     # Placing input ports as a column at the left end
     portIndex = 1
     v_wire_map[0] = 0
@@ -50,8 +53,20 @@ def drawNetlist(schematic,file_name):
         loc[1] = schematic.port_seperation * portIndex
         portIndex += 1
 
-        net = iPort.getConnectedNet()
-        if not net is None:
+        portNets = []
+        if iPort.getType() == 'PORT':
+            net = iPort.getConnectedBus()
+            if net is not None:
+                portNets.append(net)
+            #for i in range(iPort.getLSB(), iPort.getMSB()+1):
+            #    if iPort.getConnectedNet(i) is not None:
+            #        portNets.append(iPort.getConnectedNet(i))
+        else:
+            net = iPort.getConnectedNet()
+            if net is not None:
+                portNets.append(net)
+
+        for net in portNets:
             # draw wire to vertical wire
             v_wire_map[0] += 1
             v_wire_names_map[net] = { 0 : (v_wire_map[0], loc[1], loc[1]) }
@@ -68,6 +83,7 @@ def drawNetlist(schematic,file_name):
             for load in net.getLoads():
                 load.setAttribute('port_driven',True)
 
+    # Step 3: Detect and mark feedback nets
     # Do a DFS to find feedback path and mark them for ignoring in topological sort
     for gate in schematic.gateList :
 
@@ -111,6 +127,7 @@ def drawNetlist(schematic,file_name):
                                 if is_cyclic :
                                     cLoad.setAttribute('feedback_net', str(cNet))
 
+    # Step 4: Topological sort the cells into clusters
     # Create cell edges
     incomming_edges = {}
     outgoing_edges = {}
@@ -150,7 +167,7 @@ def drawNetlist(schematic,file_name):
             gates_without_incomming.append(gate)
 
     # topological sorting
-    sorted_list = []
+    sorted_gate_list = []
     while gates_without_incomming :
         gate = gates_without_incomming.pop()
 
@@ -159,10 +176,11 @@ def drawNetlist(schematic,file_name):
         if cluster_id == None :
             cluster_id = 1
             gate.setAttribute('cluster_id', cluster_id)
+
             if last_cluster < cluster_id:
                 last_cluster = cluster_id
 
-        sorted_list.append(gate)
+        sorted_gate_list.append(gate)
 
         if not gate in outgoing_edges:
             continue
@@ -172,7 +190,6 @@ def drawNetlist(schematic,file_name):
 
             incomming_edges[loadCell].remove(gate)
             if not incomming_edges[loadCell]:
-                sorted_list.append(loadCell)
                 gates_without_incomming.append(loadCell)
                 loadCell.setAttribute('cluster_id', cluster_id + 1)
                 if last_cluster < (cluster_id+1):
@@ -181,13 +198,15 @@ def drawNetlist(schematic,file_name):
     # incomming_edges and outgoing_edges are not empty then there are loops in circuit
     # it will not matter for sorting
 
+    # Step 5: Place gates in clusters
     # when a gate is placed cluster height increases
-    clusterHeight = {}
-    # Bringing cell pins close to cell node
-    for gate in schematic.gateList :
+    clusterHeight = { 0 : len(netlist.getInputPorts()) }
+    cluster_xpos = { 0 : schematic.figure_margin }
+    for gate in sorted_gate_list:
         cluster_id = gate.getAttribute('cluster_id')
         if cluster_id == None:
             cluster_id = 1
+            gate.setAttribute('cluster_id', cluster_id)
 
         if not cluster_id in clusterHeight:
             clusterHeight[cluster_id] = 1
@@ -195,14 +214,26 @@ def drawNetlist(schematic,file_name):
             clusterHeight[cluster_id] += 1
 
         gate.setAttribute('cluster_height', clusterHeight[cluster_id])
+
+    # Bringing cell pins close to cell node
+    for gate in sorted_gate_list:
+        cluster_id = gate.getAttribute('cluster_id')
+        gate_height = gate.getAttribute('cluster_height')
+
         gate_pos_ = pos[gate]
 
         # x position
-        gate_pos_[0] = schematic.figure_margin + cluster_id * schematic.cell_seperation_x
+        if not cluster_id in cluster_xpos:
+            cluster_xpos[cluster_id] = cluster_xpos[cluster_id-1] + schematic.cell_seperation_x
+            # When we have too many gates in a cluster vertical wires may require more space than specified with schematic.cell_seperation_x
+            # So we will assume there are two output wires per cell and add extra x space
+            cluster_xpos[cluster_id] += 2 * schematic.wire_seperation * clusterHeight[cluster_id]
+
+        gate_pos_[0] = cluster_xpos[cluster_id]
         diagWidth = max(diagWidth, gate_pos_[0])
 
         # y position
-        gate_pos_[1] = clusterHeight[cluster_id] * schematic.cell_seperation_y
+        gate_pos_[1] = gate_height * schematic.cell_seperation_y
 
         inList = gate.getInputs()
         inCount = len(inList)
@@ -241,15 +272,17 @@ def drawNetlist(schematic,file_name):
             net_pos_[0] = (pin_pos_[0] + net_pos_[0])/2
             net_pos_[1] = (pin_pos_[1] + net_pos_[1])/2
 
+    # Step 6: Re-evaluate schematic.figure_width after placing cells
     # placing output ports as a column in righ hand end
     diagWidth = diagWidth + schematic.cell_seperation_x
     if diagWidth > schematic.figure_width :
         if schematic.auto_scale :
-            shout('INFO','Rescaling schematic width')
             schematic.figure_width = diagWidth
+            shout('INFO','Rescaling schematic width to {}'.format(diagWidth))
         else:
             shout('WARN','schematic is wider than specified. Increase schematic.figure_width or use schematic.auto_scale')
 
+    # Step 7: Draw the output pins similar to output ports
     portIndex = 1
     for oPort in netlist.getOutputPorts():
         loc = pos[oPort]
@@ -257,8 +290,15 @@ def drawNetlist(schematic,file_name):
         loc[1] = schematic.port_seperation * portIndex
         portIndex += 1
 
-        net = oPort.getConnectedNet()
-        if not net is None:
+        portNets = []
+        if oPort.getType() == 'PORT':
+            for i in range(oPort.getLSB(), oPort.getMSB()+1):
+                if oPort.getConnectedNet(i) is not None:
+                    portNets.append(oPort.getConnectedNet(i))
+        elif oPort.getType() == 'PIN' and oPort.getConnectedNet() is not None:
+            portNets.append(oPort.getConnectedNet())
+
+        for net in portNets:
             # draw wire to vertical wire
             if not last_cluster in v_wire_map:
                 v_wire_map[last_cluster] = 1
@@ -280,8 +320,7 @@ def drawNetlist(schematic,file_name):
                 net_color = plotColor(schematic.wire_color)
                 net.setAttribute('color',net_color)
 
-            vw_x = ( schematic.figure_margin
-                    + schematic.cell_seperation_x * last_cluster
+            vw_x = ( cluster_xpos[last_cluster]
                     + schematic.cell_seperation_x * schematic.wire_split
                     + schematic.wire_seperation * v_wire_names_map[net][last_cluster][0])
             plt.plot([vw_x, loc[0]],[loc[1],loc[1]],net.getAttribute('color'))
@@ -314,8 +353,7 @@ def drawNetlist(schematic,file_name):
 
             v_wire = v_wire_names_map[net]
             for cid, vw_descript in v_wire.items():
-                vw_x = ( schematic.figure_margin
-                        + schematic.cell_seperation_x * cid
+                vw_x = ( cluster_xpos[cid]
                         + schematic.cell_seperation_x * schematic.wire_split
                         + schematic.wire_seperation * vw_descript[0])
                 # draw vertical wire
@@ -334,10 +372,11 @@ def drawNetlist(schematic,file_name):
             h_wire_names_map[net][0] = (h_wire_map[0], hw_max, hw_min)
 
 
-    # placing nets
+    # Step 8: Draw the nets
+
     ######## Model Description using v_wire and h_wire ##################
     #                                                                   #
-    #      cluster_1      cluster_2       cluster_3                     #
+    #      cluster_0      cluster_1       cluster_2                     #
     #                                                                   #
     #  >    ------           ------          ------     >               #
     #      | cell |-----max | cell |   -----| cell |          height 1  #
@@ -356,12 +395,21 @@ def drawNetlist(schematic,file_name):
             net_color = plotColor(schematic.wire_color)
             net.setAttribute('color',net_color)
 
+        net_width = schematic.wire_width
+        if net.getType() == 'BUS':
+            net_width = schematic.bus_width
+        net.setAttribute('width', net_width)
+
         net_pos_ = pos[net]
         net_pos_[0] = 0
         net_pos_[1] = 0
 
         for driver in net.getDrivers():
-            if driver.getType() == 'PIN':
+            if driver.getType() == 'PIN' or driver.getType() == 'PORT':
+
+                if driver.getType() == 'PIN' and driver.getParentPort() != None:
+                    driver = driver.getParentPort()
+
                 pCell = driver.getParent()
                 if pCell != None and pCell.getType() == 'CELL':
 
@@ -379,11 +427,10 @@ def drawNetlist(schematic,file_name):
 
                         v_wire_names_map[net] = {cluster_id : (v_wire_map[cluster_id], d_y, d_y)}
                         # draw wire to vertical wire
-                        vw_x = ( schematic.figure_margin
+                        vw_x = ( cluster_xpos[cluster_id]
                                 + schematic.cell_seperation_x * schematic.wire_split
-                                + schematic.cell_seperation_x * cluster_id
                                 + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
-                        plt.plot([d_x,vw_x],[d_y,d_y],net_color)
+                        plt.plot([d_x,vw_x],[d_y,d_y],net_color, linewidth=net_width)
                     else:
                         if not cluster_id in v_wire_names_map[net]:
                             if cluster_id in v_wire_map:
@@ -393,11 +440,10 @@ def drawNetlist(schematic,file_name):
 
                             v_wire_names_map[net][cluster_id] = (v_wire_map[cluster_id], d_y, d_y)
                             # draw wire to vertical wire
-                            vw_x = ( schematic.figure_margin
+                            vw_x = ( cluster_xpos[cluster_id]
                                     + schematic.cell_seperation_x * schematic.wire_split
-                                    + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
-                            plt.plot([d_x,vw_x],[d_y,d_y],net_color)
+                            plt.plot([d_x,vw_x],[d_y,d_y],net_color, linewidth=net_width)
                         else:
                             vw = v_wire_names_map[net][cluster_id]
                             vw_max = max(vw[1],d_y)
@@ -405,22 +451,26 @@ def drawNetlist(schematic,file_name):
 
                             v_wire_names_map[net][cluster_id] = (vw[0], vw_max, vw_min)
                             # draw wire to vertical wire
-                            vw_x = ( schematic.figure_margin
+                            vw_x = ( cluster_xpos[cluster_id]
                                     + schematic.cell_seperation_x * schematic.wire_split
-                                    + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
-                            plt.plot([d_x,vw_x],[d_y,d_y],net_color)
+                            plt.plot([d_x,vw_x],[d_y,d_y],net_color, linewidth=net_width)
 
             else:
-                shout('ERROR', '%s net is driven by %s which is not type PIN' % (net, driver))
+                shout('ERROR', '%s net is driven by %s which is not type PIN or PORT' % (net, driver))
+
             net_pos_[0] += pos[driver][0]
             net_pos_[1] += pos[driver][1]
 
         for load in net.getLoads():
-            net_pos_[0] += pos[load][0]
-            net_pos_[1] += pos[load][1]
 
-            if load.getType() == 'PIN':
+            if load.getType() == 'PIN' or load.getType() == 'PORT':
+                if load.getType() == 'PIN' and load.getParentPort() != None:
+                    load = load.getParentPort()
+
+                net_pos_[0] += pos[load][0]
+                net_pos_[1] += pos[load][1]
+
                 pCell = load.getParent()
                 if pCell != None and pCell.getType() == 'CELL':
                     # load cell connect to wire cluster before the cell
@@ -438,11 +488,10 @@ def drawNetlist(schematic,file_name):
 
                         v_wire_names_map[net] = {cluster_id : (v_wire_map[cluster_id], l_y, l_y)}
                         # draw wire to vertical wire
-                        vw_x = ( schematic.figure_margin
+                        vw_x = ( cluster_xpos[cluster_id]
                                 + schematic.cell_seperation_x * schematic.wire_split
-                                + schematic.cell_seperation_x * cluster_id
                                 + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
-                        plt.plot([vw_x,l_x],[l_y,l_y],net_color)
+                        plt.plot([vw_x,l_x],[l_y,l_y],net_color, linewidth=net_width)
                     else:
                         if not cluster_id in v_wire_names_map[net]:
                             if cluster_id in v_wire_map:
@@ -452,11 +501,10 @@ def drawNetlist(schematic,file_name):
 
                             v_wire_names_map[net][cluster_id] = (v_wire_map[cluster_id], l_y, l_y)
                             # draw wire to vertical wire
-                            vw_x = ( schematic.figure_margin
+                            vw_x = ( cluster_xpos[cluster_id]
                                     + schematic.cell_seperation_x * schematic.wire_split
-                                    + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
-                            plt.plot([vw_x,l_x],[l_y,l_y],net_color)
+                            plt.plot([vw_x,l_x],[l_y,l_y],net_color, linewidth=net_width)
                         else:
                             vw = v_wire_names_map[net][cluster_id]
                             vw_max = max(vw[1],l_y)
@@ -464,20 +512,23 @@ def drawNetlist(schematic,file_name):
 
                             v_wire_names_map[net][cluster_id] = (vw[0], vw_max, vw_min)
                             # draw wire to vertical wire
-                            vw_x = ( schematic.figure_margin
+                            vw_x = ( cluster_xpos[cluster_id]
                                     + schematic.cell_seperation_x * schematic.wire_split
-                                    + schematic.cell_seperation_x * cluster_id
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
-                            plt.plot([vw_x,l_x],[l_y,l_y],net_color)
+                            plt.plot([vw_x,l_x],[l_y,l_y],net_color, linewidth=net_width)
 
             else:
-                shout('ERROR', '%s net is driving %s which is not type PIN' % (net, load))
+                shout('ERROR', '%s net is driving %s which is not type PIN or PORT' % (net, load))
 
-        net_pos_[0] = net_pos_[0]/(len(net.getDrivers()) + len(net.getLoads()))
-        net_pos_[1] = net_pos_[1]/(len(net.getDrivers()) + len(net.getLoads()))
+        net_pos_[0] = net_pos_[0]/max(1, (len(net.getDrivers()) + len(net.getLoads())))
+        net_pos_[1] = net_pos_[1]/max(1, (len(net.getDrivers()) + len(net.getLoads())))
 
     # draw vertical wires
     for net,vwires in v_wire_names_map.items():
+
+        net_width = net.getAttribute('width')
+        if net_width is None:
+            net_width = schematic.wire_width
 
         # multiple v_wires need to be connected with h_wire
         vwire_count=0
@@ -490,9 +541,8 @@ def drawNetlist(schematic,file_name):
 
         for cluster_id,vw_descript in ordered_vwires.items():
 
-            c_x = ( schematic.figure_margin
+            c_x = ( cluster_xpos[cluster_id]
                     + schematic.cell_seperation_x * schematic.wire_split
-                    + schematic.cell_seperation_x * (cluster_id)
                     + schematic.wire_seperation * (vw_descript[0]) )
             c_y_max = vw_descript[1]
             c_y_min = vw_descript[2]
@@ -508,7 +558,7 @@ def drawNetlist(schematic,file_name):
                                     + schematic.wire_split * schematic.cell_seperation_y
                                     + schematic.wire_seperation * hw_descript[0])
                         h_wire_names_map[net][hc_height] = (hw_descript[0], hw_x_min, c_x)
-                        plt.plot([hw_x_max, c_x],[hw_y, hw_y],net.getAttribute('color'))
+                        plt.plot([hw_x_max, c_x],[hw_y, hw_y],net.getAttribute('color'), linewidth=net_width)
 
                         # IMPORTANT: below changes are not stored in dicitonary
                         if hw_y > c_y_max:
@@ -535,13 +585,13 @@ def drawNetlist(schematic,file_name):
                         hw_x_max = c_x
                         h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
                         # plot horizontal wire
-                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'), linewidth=net_width)
                         # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
                         if prev_c_y_max < hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'), linewidth=net_width)
                             prev_c_y_max = hw_y
                         elif prev_c_y_min > hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'), linewidth=net_width)
                             prev_c_y_min = hw_y
 
                         # IMPORTANT: below extension is not stored in dictionary
@@ -561,13 +611,13 @@ def drawNetlist(schematic,file_name):
                         hw_x_max = c_x
                         h_wire_names_map[net] = { hw_cluster_height : (h_wire_map[hw_cluster_height], hw_x_max, hw_x_min) }
                         # plot horizontal wire
-                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'), linewidth=net_width)
                         # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
                         if prev_c_y_max < hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'), linewidth=net_width)
                             prev_c_y_max = hw_y
                         elif prev_c_y_min > hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'), linewidth=net_width)
                             prev_c_y_min = hw_y
 
                         # IMPORTANT: below extension is not stored in dictionary
@@ -597,13 +647,13 @@ def drawNetlist(schematic,file_name):
                         elif hw_y < c_y_min:
                             c_y_min = hw_y
                         # plot horizontal wire
-                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'))
+                        plt.plot([hw_x_min, hw_x_max],[hw_y, hw_y], net.getAttribute('color'), linewidth=net_width)
                         # feedback check: if not prev_c_y_max >= hw_y >= prev_c_y_min need to extend prev_vwire
                         if prev_c_y_max < hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_max, hw_y], net.getAttribute('color'), linewidth=net_width)
                             prev_c_y_max = hw_y
                         elif prev_c_y_min > hw_y:
-                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'))
+                            plt.plot([prev_c_x, prev_c_x], [prev_c_y_min, hw_y], net.getAttribute('color'), linewidth=net_width)
                             prev_c_y_min = hw_y
 
 
@@ -614,18 +664,22 @@ def drawNetlist(schematic,file_name):
             prev_c_x     = c_x
 
             # plot vertical wire
-            plt.plot([c_x,c_x],[c_y_max,c_y_min],net.getAttribute('color'))
+            plt.plot([c_x,c_x],[c_y_max,c_y_min],net.getAttribute('color'), linewidth=net_width)
 
     # draw pins
-    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='>', node_size=schematic.pin_size, node_color='c', nodelist=schematic.pinList)
+    fig.dpi = fig.dpi*8
+    pin_size = schematic.pin_size**2/schematic.figure_width
+    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='>', node_size=pin_size, node_color='c', nodelist=schematic.pinList)
     # draw cells
-    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='s', node_size=schematic.cell_size, node_color='y', nodelist=schematic.gateList)
+    cell_size = schematic.cell_size**2/schematic.figure_width
+    nx.draw_networkx_nodes(netlist._graph, pos, node_shape='s', node_size=cell_size, node_color='y', nodelist=schematic.gateList)
     # draw nets
     nx.draw_networkx_nodes(netlist._graph, pos, node_shape='d', node_size=1, node_color='m', nodelist=schematic.netList)
 
     #Stop drawing edges because we want to display routes
     #nx.draw_networkx_edges(netlist._graph,pos)
-    nx.draw_networkx_labels(netlist._graph,pos, labels=schematic.labels)
+    font_size = math.ceil(math.sqrt(cell_size)/4)
+    nx.draw_networkx_labels(netlist._graph,pos, labels=schematic.labels, font_size=font_size)
 
 
     plt.axis('equal')

@@ -5,14 +5,21 @@ class Cell(nlNode):
     """
     Generic Gate class
     """
-    def __init__(self, name, parent, function, inputs, outputs):
+    def __init__(self, name, parent, function, inputs=[], outputs=[]):
         super().__init__('CELL', name, parent)
         self._function = function
-        if len(inputs) > 0 :
-            self._inputs = inputs
-        if len(outputs) > 0 :
-            self._outputs = outputs
-        parent._gateList.append(self)
+        self._inputs = inputs
+        self._outputs = outputs
+        while parent.getType() != 'NETLIST':
+            parent = parent.getParent()
+            if parent is None:
+                shout('ERROR', '{} cell does not belong to a netlist'.format(name))
+
+        self._netlist = parent
+        self._netlist._gateList.append(self)
+
+    def getCellName(self):
+        return self.__class__.__name__
 
     def getInputs(self):
         return self._inputs
@@ -25,15 +32,13 @@ class Cell(nlNode):
             return self._inputs[index]
 
     def addInput(self, newInput):
-        if newInput.getType() != 'PIN':
-            shout('ERROR', 'Input is not type PIN')
+        if newInput.getType() != 'PIN' and newInput.getType() != 'PORT':
+            shout('ERROR', 'Input is not type PIN or PORT')
 
         newInput.setParent(self)
         self._inputs.append(newInput)
-        netlist = self.getParent()
-        if netlist:
-            netlist._graph.add_node(newInput)
-            netlist._graph.add_edge(newInput, self)
+        self._netlist._graph.add_node(newInput)
+        self._netlist._graph.add_edge(newInput, self)
 
     def getOutputs(self):
         return self._outputs
@@ -46,15 +51,13 @@ class Cell(nlNode):
             return self._outputs[index]
 
     def addOutput(self, newOutput):
-        if newOutput.getType() != 'PIN':
-            shout('ERROR', 'Output is not type PIN')
+        if newOutput.getType() != 'PIN' and newOutput.getType() != 'PORT':
+            shout('ERROR', 'Output is not type PIN or PORT')
 
         newOutput.setParent(self)
         self._outputs.append(newOutput)
-        netlist = self.getParent()
-        if netlist:
-            netlist._graph.add_node(newOutput)
-            netlist._graph.add_edge(newOutput, self)
+        self._netlist._graph.add_node(newOutput)
+        self._netlist._graph.add_edge(self, newOutput)
 
     def getPinByName(self, name):
         for inPin in self._inputs:
@@ -141,6 +144,7 @@ def readLiberty(filename) -> CellLibrary:
                 # Dynamically create the cell
                 cellType = type(cell_name, (Cell,), {
                     'name' : cell_name,
+                    '_type' : 'CELL',
                     'pinMap' : cell_pins,
                     '__init__' : protoLibCellInit
                 })
@@ -175,6 +179,7 @@ def protoLibCellInit(self, parent):
 @static_vars(inst=0)
 class AND2(Cell):
     def __init__(self, parent):
+        self._type = 'CELL'
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
@@ -185,6 +190,7 @@ class AND2(Cell):
 @static_vars(inst=0)
 class OR2(Cell):
     def __init__(self, parent):
+        self._type = 'CELL'
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
@@ -195,6 +201,7 @@ class OR2(Cell):
 @static_vars(inst=0)
 class XOR2(Cell):
     def __init__(self, parent):
+        self._type = 'CELL'
         in1 = Pin('IN1', self)
         in2 = Pin('IN2', self)
         out = Pin('OUT', self)
@@ -205,6 +212,7 @@ class XOR2(Cell):
 @static_vars(inst=0)
 class INV(Cell):
     def __init__(self, parent):
+        self._type = 'CELL'
         in1 = Pin('IN1', self)
         out = Pin('OUT', self)
         name = 'INV_%d' % INV.inst
@@ -214,6 +222,7 @@ class INV(Cell):
 @static_vars(inst=0)
 class FLOP(Cell):
     def __init__(self, parent):
+        self._type = 'CELL'
         d = Pin('D', self)
         q = Pin('Q', self)
         clk = Pin('CLK', self)

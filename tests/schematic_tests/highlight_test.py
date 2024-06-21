@@ -89,7 +89,7 @@ class TestHighlight(unittest.TestCase):
                     path_found = True
                 else:
                     parent = node.getParent()
-                    if parent.getType() is 'CELL':
+                    if parent.getType() == 'CELL':
                         if node in parent.getOutputs():
                             net = node.getConnectedNet()
                             if not net is None and not net in dfs_parent:

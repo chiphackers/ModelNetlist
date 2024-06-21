@@ -4,6 +4,8 @@ from .nlUtils import *
 from .nlNode import *
 from .Cell import *
 from .Net import *
+from .Bus import *
+from .Port import *
 ##############################################################
 # Main Class : NetList
 ##############################################################
@@ -27,8 +29,11 @@ class ModelNetlist(nlNode):
         netGraph = inst.populateNetGraph()
         self._graph = nx.compose(netGraph, self._graph)
 
-    def addPort(self, direction, name):
+    def addPort(self, direction, name, lsb=0, msb=-1):
         port = Pin(name, self)
+        if msb > 0:
+            port = Port(name, self, lsb, msb)
+
         if not direction in self._ports.keys():
             shout('ERROR', 'invalid direction. Allowed directions are %s' % self._ports.keys())
 
@@ -38,17 +43,39 @@ class ModelNetlist(nlNode):
 
     # Instead of creating Net objects explicitly connect PINs using this API
     def connect(self, driver, load):
-        if driver.getType() != 'PIN' and load.getType() != 'PIN':
-            shout('ERROR', 'connect(driver_pin, [load_pins]) expects only PIN objects')
+        # Sanity checks to verify the driver and load can be connected
+        dtype = driver.getType()
+        ltype = load.getType()
+        is_connectable = False
+        is_bus = False
+        is_new_net = False
+        con_net = None
+        if dtype == 'PIN' and ltype == 'PIN':
+            is_connectable = True
+            con_net = driver.getConnectedNet()
+            if not con_net:
+                con_net = load.getConnectedNet()
+        elif dtype == 'PORT' and ltyle == 'PORT' and driver.getWidth() == load.getWidth():
+            is_connectable = True
+            is_bus = True
+            con_net = driver.getConnectedBus()
+            if not con_net:
+                con_net = load.getConnectedBus()
 
-        # If the driver already have a net reuse it
-        con_net = driver.getConnectedNet()
+        if not is_connectable:
+            shout('ERROR', '{} and {} can not be connected'.format(driver, load))
+
+        # If the driver does not have a connection create a new net
         if not con_net:
-            con_net = load.getConnectedNet()
-        if not con_net:
-            con_net = Net(self)
+            is_new_net = True
+            if is_bus:
+                con_net = Bus('bus_%d' % Bus.inst, self, driver.getLSB(), driver.getMSB())
+            else:
+                con_net = Net(self)
         con_net.addLoad(load)
         con_net.addDriver(driver)
+        if is_new_net:
+            self.addNet(con_net)
 
     # Instead of calling above APIs for each cell/net call below API
     def build(self):
@@ -75,10 +102,30 @@ class ModelNetlist(nlNode):
             conNet = inst.getConnectedNet()
             if conNet is not None:
                 if inst in conNet.getDrivers():
-                    conNet.getDrivers().remove(inst)
+                    conNet.removeDriver(inst)
                 elif inst in conNet.getLoads():
-                    conNet.getLoads().remove(inst)
+                    conNet.removeLoad(inst)
             # If the pin is a port of the netlist
+            for k in self._ports.keys():
+                portList = self._ports[k]
+                if inst in portList:
+                    portList.remove(inst)
+        elif inst.getType() == 'BUS':
+            for i in range(inst.getLSB(), inst.getMSB()+1):
+                self.remove(inst.getNet(i))
+            self._netList.remove(inst)
+        elif inst.getType() == 'PORT':
+            conBus = inst.getConnectedBus()
+            if conBus is not None:
+                if inst in conBus.getDrivers():
+                    conBus.removeDriver(inst)
+                elif inst in conBus.getLoads():
+                    conBus.removeLoad(inst)
+
+            for i in range(inst.getLSB(), inst.getMSB()+1):
+                self.remove(inst.getPin(i))
+
+            # If the port is input/output of the top design
             for k in self._ports.keys():
                 portList = self._ports[k]
                 if inst in portList:
@@ -200,7 +247,7 @@ def readVerilogNetlist(verilogNetlist, cellLibList) -> ModelNetlist:
 
     try:
         from pyverilog.vparser.parser import parse
-        from pyverilog.vparser.ast import ModuleDef, Decl, Input, Output, InstanceList, Instance, Identifier, Pointer, PortArg, Wire
+        from pyverilog.vparser.ast import ModuleDef, Decl, Input, Output, Width, InstanceList, Instance, Identifier, Pointer, Partselect, PortArg, Wire, IntConst
     except:
         shout('ERROR', 'Pyverilog package is required')
         return None
@@ -223,19 +270,39 @@ def readVerilogNetlist(verilogNetlist, cellLibList) -> ModelNetlist:
                         for decChild in modChild.children():
                             decName = str(decChild.name)
                             if isinstance(decChild, Input):
-                                netlist.addPort('in', decName)
-                                portMap['in'].append(decName)
+                                width = get_LSB_N_MSB(decChild)
+                                if width is None:
+                                    netlist.addPort('in', decName)
+                                    portMap['in'].append(decName)
+                                else:
+                                    netlist.addPort('in', decName, width[0], width[1])
+                                    portMap['in'].append(decName)
                             elif isinstance(decChild, Output):
-                                netlist.addPort('out', decName)
-                                portMap['out'].append(decName)
+                                width = get_LSB_N_MSB(decChild)
+                                if width is None:
+                                    netlist.addPort('out', decName)
+                                    portMap['out'].append(decName)
+                                else:
+                                    netlist.addPort('out', decName, width[0], width[1])
+                                    portMap['out'].append(decName)
                             elif isinstance(decChild, Wire):
-                                net = Net(netlist)
-                                net.setName(decName)
-                                if decName in portMap['in']:
-                                    net.addDriver(netlist.getPort(decName))
-                                elif decName in portMap['out']:
-                                    net.addLoad(netlist.getPort(decName))
-                                wireMap[decName] = net
+                                width = get_LSB_N_MSB(decChild)
+                                if width is None:
+                                    net = Net(netlist)
+                                    net.setName(decName)
+                                    if decName in portMap['in']:
+                                        net.addDriver(netlist.getPort(decName))
+                                    elif decName in portMap['out']:
+                                        net.addLoad(netlist.getPort(decName))
+                                    wireMap[decName] = net
+                                else:
+                                    bus = Bus(decName, netlist, width[0], width[1])
+                                    if decName in portMap['in']:
+                                        bus.addDriver(netlist.getPort(decName), width[0], width[1])
+                                    elif decName in portMap['out']:
+                                        bus.addLoad(netlist.getPort(decName), width[0], width[1])
+                                    wireMap[decName] = bus
+
                     if isinstance(modChild, InstanceList):
                         # Loop iterating instances (i.e., gates)
                         for inst in modChild.children():
@@ -244,19 +311,59 @@ def readVerilogNetlist(verilogNetlist, cellLibList) -> ModelNetlist:
                                     cell = lib.getCell(inst.module)
                                     if cell:
                                         cellInst = cell(netlist)
+                                        cellInst.setName(inst.name)
                                         for port in inst.portlist:
                                             portname = str(port.argname)
-                                            # if the port is a bus need to decode the name from a Pointer object
-                                            if isinstance(port.argname, Pointer):
-                                                portname = str(port.argname.var)
-                                            net = wireMap[portname]
-                                            pin = cellInst.getPinByName(str(port.portname))
-                                            if pin in cellInst.getInputs():
-                                                net.addLoad(pin)
-                                            elif pin in cellInst.getOutputs():
-                                                net.addDriver(pin)
+                                            pinList = []
+                                            indexList = []
+                                            net = None
+                                            if portname in wireMap:
+                                                net = wireMap[portname]
                                             else:
-                                                shout('ERROR', 'Pin {} not found in cell {}'.format(pin, cell))
+                                                # if the port is a bus need to decode the name from a Pointer object
+                                                if isinstance(port.argname, Pointer) or isinstance(port.argname, Partselect):
+                                                    busName = str(port.argname.var)
+                                                    bus = wireMap[busName]
+                                                    for i in port.argname.children():
+                                                        if isinstance(i, IntConst):
+                                                            indexList.append(int(i.value))
+                                                    if len(indexList) == 1:
+                                                        net = bus.getNet(indexList[0])
+                                                    else:
+                                                        # A cell with multi-bits ports: We expect to see this when we have macros (i.e., RAM)
+                                                        indexList.sort()
+                                                        net = bus
+
+                                            pin = cellInst.getPinByName(str(port.portname))
+                                            if net is not None:
+                                                if pin.isLoad():
+                                                    if net.getType() == 'BUS' and len(indexList) == 2:
+                                                        net.addLoad(pin, indexList[0], indexList[1])
+                                                    else:
+                                                        net.addLoad(pin)
+                                                elif pin.isDriver():
+                                                    if net.getType() == 'BUS' and len(indexList) == 2:
+                                                        net.addDriver(pin, indexList[0], indexList[1])
+                                                    else:
+                                                        net.addDriver(pin)
+                                                else:
+                                                    shout('ERROR', 'Pin {} not found in cell {}'.format(pin, cell))
+                                            else:
+                                                shout('ERROR', 'Net {} not found'.format(portname))
 
         netlist.build()
         return netlist
+
+# Helper function for readVerilogNetlist
+def get_LSB_N_MSB(sub_ast):
+
+    from pyverilog.vparser.ast import Width
+
+    # Onput port can have a width
+    for child in sub_ast.children():
+        if isinstance(child, Width):
+            msb = int(child.msb.value)
+            lsb = int(child.lsb.value)
+            return (lsb, msb)
+    return None
+

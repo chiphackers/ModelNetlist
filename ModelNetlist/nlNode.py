@@ -10,16 +10,28 @@ class nlNode:
         self._attributes = {}
 
     def __str__(self):
-        if self._parent :
-            return '%s.%s' % (self._parent, self._name)
-        else :
-            return '%s' % (self._name)
+        return self.getFullName()
 
     def getType(self):
         return self._type
 
     def getName(self):
-        return self._name
+        if self._parent is not None:
+            if self._parent.getType() == 'PORT' or self._parent.getType() == 'BUS':
+                return '%s%s' % (self._parent.getName(), self._name)
+            else:
+                return self._name
+        else:
+            return self._name
+
+    def getFullName(self):
+        if self._parent is not None:
+            if self._parent.getType() == 'PORT' or self._parent.getType() == 'BUS':
+                return '%s%s' % (self._parent.getFullName(), self._name)
+            else:
+                return '%s.%s' % (self._parent.getFullName(), self._name)
+        else:
+            return '%s' % (self._name)
 
     def getParent(self):
         return self._parent
