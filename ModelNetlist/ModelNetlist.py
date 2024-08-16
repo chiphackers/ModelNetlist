@@ -42,7 +42,7 @@ class ModelNetlist(nlNode):
         self._graph.add_node(port)
 
     # Instead of creating Net objects explicitly connect PINs using this API
-    def connect(self, driver, load):
+    def connect(self, driver, load, name=None):
         # Sanity checks to verify the driver and load can be connected
         dtype = driver.getType()
         ltype = load.getType()
@@ -69,9 +69,14 @@ class ModelNetlist(nlNode):
         if not con_net:
             is_new_net = True
             if is_bus:
-                con_net = Bus('bus_%d' % Bus.inst, self, driver.getLSB(), driver.getMSB())
+                if name is not None:
+                    con_net = Bus(name, self, driver.getLSB(), driver.getMSB())
+                else:
+                    con_net = Bus('bus_%d' % Bus.inst, self, driver.getLSB(), driver.getMSB())
             else:
                 con_net = Net(self)
+                if name is not None:
+                    con_net.setName(name)
         con_net.addLoad(load)
         con_net.addDriver(driver)
         if is_new_net:
@@ -131,7 +136,10 @@ class ModelNetlist(nlNode):
                 if inst in portList:
                     portList.remove(inst)
 
-        self._graph.remove_node(inst)
+        try:
+            self._graph.remove_node(inst)
+        except:
+            pass
 
     #########################################
     ### APIs to access netlist items      ###
