@@ -9,7 +9,7 @@ from matplotlib import pylab
 import networkx as nx
 import matplotlib.pyplot as plt
 
-from .Utils import *
+from .nlUtils import *
 
 def plotColor(color):
     if not color == 'auto':

@@ -1,5 +1,4 @@
 from ModelNetlist import *
-from commons import *
 
 import unittest
 

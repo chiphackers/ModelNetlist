@@ -357,7 +357,15 @@ def readVerilogNetlist(verilogNetlist, cellLibList) -> ModelNetlist:
                                                 else:
                                                     shout('ERROR', 'Pin {} not found in cell {}'.format(pin, cell))
                                             else:
-                                                shout('ERROR', 'Net {} not found'.format(portname))
+                                                # Implicit nets are not previously declared. Need to add these new nets to the netlist
+                                                net = Net(netlist)
+                                                net.setName(portname)
+                                                if pin.isLoad():
+                                                    net.addLoad(pin)
+                                                elif pin.isDriver():
+                                                    net.addDriver(pin)
+                                                netlist.addNet(net)
+                                                wireMap[portname] = net
 
         netlist.build()
         return netlist
