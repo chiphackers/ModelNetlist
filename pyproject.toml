@@ -1,0 +1,43 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61.0"]
+
+[project]
+name = "ModelNetlist"
+version = "0.1.0"
+description = "Python library to generate graph models from verilog netlists"
+readme = "README.md"
+authors = [{ name = "Udara De Silva", email = "udara@chiphackers.com" }]
+license = { file = "LICENSE" }
+requires-python = '>=3.10'
+dependencies = [
+    "networkX >=3.3",
+    "matplotlib >= 3.9.2"
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "Topic :: Software Development :: Code Generators"
+]
+
+[project.optional-dependencies]
+default = [
+    "pyverilog >= 1.3.0",
+    "liberty-parser >= 0.0.23"
+]
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = false
+packages = [
+    "ModelNetlist"
+]
+platforms = [
+    "Linux"
+]
+
