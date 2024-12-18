@@ -163,7 +163,7 @@ class ModelNetlist(nlNode):
     def getNets(self):
         return self._netList
 
-    def getNeighbours(self, node):
+    def getNeighbors(self, node):
         return self._graph.neighbors(node)
 
     ##########################################

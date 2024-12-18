@@ -54,22 +54,34 @@ def drawNetlist(schematic,file_name):
         portIndex += 1
 
         portNets = []
+        portNetLabels = []
         if iPort.getType() == 'PORT':
             net = iPort.getConnectedBus()
             if net is not None:
                 portNets.append(net)
+                portNetLabels.append(net.getName())
             #for i in range(iPort.getLSB(), iPort.getMSB()+1):
             #    if iPort.getConnectedNet(i) is not None:
             #        portNets.append(iPort.getConnectedNet(i))
         else:
             net = iPort.getConnectedNet()
             if net is not None:
+                portNetLabels.append(net.getName()) # We need the original name (i.e., not the parent bus name)
+                if net.getParentBus() is not None:
+                    net = net.getParentBus()
                 portNets.append(net)
 
         for net in portNets:
-            # draw wire to vertical wire
-            v_wire_map[0] += 1
-            v_wire_names_map[net] = { 0 : (v_wire_map[0], loc[1], loc[1]) }
+            # if the wire (specially bus) is already added don't do it again
+            if not net in v_wire_names_map:
+                # draw wire to vertical wire
+                v_wire_map[0] += 1
+                v_wire_names_map[net] = { 0 : (v_wire_map[0], loc[1], loc[1]) }
+            else:
+                (index, max_y, min_y) = v_wire_names_map[net][0]
+                max_y = max(max_y, loc[1])
+                min_y = min(min_y, loc[1])
+                v_wire_names_map[net] = { 0 : (index, max_y, min_y) }
 
             if net.getAttribute('color') is None:
                 net_color = plotColor(schematic.wire_color)
@@ -79,6 +91,12 @@ def drawNetlist(schematic,file_name):
                     + schematic.cell_seperation_x * schematic.wire_split
                     + schematic.wire_seperation * v_wire_names_map[net][0][0])
             plt.plot([loc[0],vw_x],[loc[1],loc[1]],net.getAttribute('color'))
+            # print wire label if its a bus
+            netLabel = portNetLabels.pop()
+            if net.getType() == 'BUS':
+                x_cord = loc[0]+ (vw_x-loc[0])//2
+                y_cord = loc[1]+schematic.wire_seperation//2
+                plt.text(x_cord, y_cord, netLabel)
 
             for load in net.getLoads():
                 load.setAttribute('port_driven',True)
@@ -249,6 +267,9 @@ def drawNetlist(schematic,file_name):
             if not connectedNet :
                 continue
 
+            if connectedNet.getParentBus() is not None:
+                connectedNet = connectedNet.getParentBus()
+
             net_pos_ = pos[connectedNet]
             net_pos_[0] = (pin_pos_[0] + net_pos_[0])/2
             net_pos_[1] = (pin_pos_[1] + net_pos_[1])/2
@@ -267,6 +288,9 @@ def drawNetlist(schematic,file_name):
             connectedNet = pin.getConnectedNet()
             if not connectedNet :
                 continue
+
+            if connectedNet.getParentBus() is not None:
+                connectedNet = connectedNet.getParentBus()
 
             net_pos_ = pos[connectedNet]
             net_pos_[0] = (pin_pos_[0] + net_pos_[0])/2
@@ -291,29 +315,41 @@ def drawNetlist(schematic,file_name):
         portIndex += 1
 
         portNets = []
+        portNetLabels = []
         if oPort.getType() == 'PORT':
-            for i in range(oPort.getLSB(), oPort.getMSB()+1):
-                if oPort.getConnectedNet(i) is not None:
-                    portNets.append(oPort.getConnectedNet(i))
+            net = oPort.getConnectedBus()
+            if net is not None:
+                portNets.append(net)
+                portNetLabels.append(net.getName())
+            #for i in range(oPort.getLSB(), oPort.getMSB()+1):
+            #    if oPort.getConnectedNet(i) is not None:
+            #        portNets.append(oPort.getConnectedNet(i))
         elif oPort.getType() == 'PIN' and oPort.getConnectedNet() is not None:
-            portNets.append(oPort.getConnectedNet())
+            net = oPort.getConnectedNet()
+            portNetLabels.append(net.getName())  # we need the original net name
+            if net.getParentBus() is not None:
+                net = net.getParentBus()
+            portNets.append(net)
 
         for net in portNets:
             # draw wire to vertical wire
-            if not last_cluster in v_wire_map:
-                v_wire_map[last_cluster] = 1
-            else:
-                v_wire_map[last_cluster] += 1
-
             if not net in v_wire_names_map:
+                if not last_cluster in v_wire_map:
+                    v_wire_map[last_cluster] = 1
+                else:
+                    v_wire_map[last_cluster] += 1
                 v_wire_names_map[net] = { last_cluster : (v_wire_map[last_cluster], loc[1], loc[1]) }
             elif not last_cluster in v_wire_names_map[net]:
+                if not last_cluster in v_wire_map:
+                    v_wire_map[last_cluster] = 1
+                else:
+                    v_wire_map[last_cluster] += 1
                 v_wire_names_map[net][last_cluster] = (v_wire_map[last_cluster], loc[1], loc[1])
             else:
                 vwire = v_wire_names_map[net][last_cluster]
                 vmax = max(loc[1], vwire[1])
                 vmin = min(loc[1], vwire[2])
-                v_wire_names_map[net] = { last_cluster : (v_wire_map[last_cluster], vmax, vmin) }
+                v_wire_names_map[net][last_cluster] = (v_wire_map[last_cluster], vmax, vmin)
 
 
             if net.getAttribute('color') is None:
@@ -324,11 +360,20 @@ def drawNetlist(schematic,file_name):
                     + schematic.cell_seperation_x * schematic.wire_split
                     + schematic.wire_seperation * v_wire_names_map[net][last_cluster][0])
             plt.plot([vw_x, loc[0]],[loc[1],loc[1]],net.getAttribute('color'))
+            # print wire label if its a bus
+            netLabel = portNetLabels.pop()
+            if net.getType() == 'BUS':
+                x_cord = vw_x + (loc[0]-vw_x)//2
+                y_cord = loc[1]+schematic.wire_seperation//2
+                plt.text(x_cord, y_cord, netLabel)
+
 
     for oPort in netlist.getOutputPorts():
         if not oPort.getAttribute('port_driven') is None:
             # input is directly connected to output. h_wire and v_wire need to be drawn
             net = oPort.getConnectedNet()
+            if net.getParentBus() is not None:
+                net = net.getParentBus()
             if net.getAttribute('color') is None:
                 net_color = plotColor(schematic.wire_color)
                 net.setAttribute('color',net_color)
@@ -407,6 +452,7 @@ def drawNetlist(schematic,file_name):
         for driver in net.getDrivers():
             if driver.getType() == 'PIN' or driver.getType() == 'PORT':
 
+                original_driver = driver
                 if driver.getType() == 'PIN' and driver.getParentPort() != None:
                     driver = driver.getParentPort()
 
@@ -418,6 +464,8 @@ def drawNetlist(schematic,file_name):
 
                     d_x = pos[driver][0]
                     d_y = pos[driver][1]
+
+                    vw_x = d_x # we need this later to print bus parts
 
                     if not net in v_wire_names_map:
                         if cluster_id in v_wire_map:
@@ -456,6 +504,15 @@ def drawNetlist(schematic,file_name):
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([d_x,vw_x],[d_y,d_y],net_color, linewidth=net_width)
 
+                    # Print the net name if the connection is a bus
+                    if net.getType() == 'BUS':
+                        x_cord = d_x + (vw_x-d_x)//2
+                        y_cord = d_y + schematic.wire_seperation//2
+                        if original_driver.getType() == 'PORT':
+                            plt.text(x_cord, y_cord, original_driver.getConnectedBus().getName())
+                        else:
+                            plt.text(x_cord, y_cord, original_driver.getConnectedNet().getName())
+
             else:
                 shout('ERROR', '%s net is driven by %s which is not type PIN or PORT' % (net, driver))
 
@@ -463,8 +520,9 @@ def drawNetlist(schematic,file_name):
             net_pos_[1] += pos[driver][1]
 
         for load in net.getLoads():
-
             if load.getType() == 'PIN' or load.getType() == 'PORT':
+
+                original_load = load
                 if load.getType() == 'PIN' and load.getParentPort() != None:
                     load = load.getParentPort()
 
@@ -480,6 +538,7 @@ def drawNetlist(schematic,file_name):
                     l_x = pos[load][0]
                     l_y = pos[load][1]
 
+                    vw_x = l_x  # we need this later to print bus parts
                     if not net in v_wire_names_map:
                         if cluster_id in v_wire_map:
                             v_wire_map[cluster_id] += 1
@@ -517,6 +576,15 @@ def drawNetlist(schematic,file_name):
                                     + schematic.wire_seperation * v_wire_names_map[net][cluster_id][0])
                             plt.plot([vw_x,l_x],[l_y,l_y],net_color, linewidth=net_width)
 
+                    # Print the net name if the connection is a bus
+                    if net.getType() == 'BUS':
+                        x_cord = l_x + (vw_x-l_x)//2
+                        y_cord = l_y + schematic.wire_seperation//2
+                        if original_load.getType() == 'PORT':
+                            plt.text(x_cord, y_cord, original_load.getConnectedBus().getName())
+                        else:
+                            plt.text(x_cord, y_cord, original_load.getConnectedNet().getName())
+
             else:
                 shout('ERROR', '%s net is driving %s which is not type PIN or PORT' % (net, load))
 
@@ -546,7 +614,6 @@ def drawNetlist(schematic,file_name):
                     + schematic.wire_seperation * (vw_descript[0]) )
             c_y_max = vw_descript[1]
             c_y_min = vw_descript[2]
-
             vwire_count += 1
             # draw h_wire if needed
             if vwire_count > 1:

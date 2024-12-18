@@ -12,7 +12,10 @@ class Port(nlNode):
         self._connectedBus = None
         self._pins = self.getWidth()*[None]
         for i in range(0, self.getWidth()):
-            self._pins[i] = Pin(i, self)
+            self._pins[i] = Pin('[{}]'.format(i), self)
+
+    def getParentPort(self):
+        return None
 
     def getLSB(self):
         return self._lsb
@@ -27,6 +30,12 @@ class Port(nlNode):
         if index < self._lsb or index > self._msb:
             shout('ERROR', 'Index out of range')
         return self._pins[index-self._lsb]
+
+    def getPinIndex(self, pin):
+        try:
+            return self._pins.index(pin)
+        except:
+            return -1
 
     def setPin(self, index, pin):
         if pin.getType() != 'PIN':

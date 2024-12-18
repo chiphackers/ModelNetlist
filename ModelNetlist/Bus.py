@@ -17,6 +17,9 @@ class Bus(nlNode):
             self._nets[i].setName('[{}]'.format(i))
         parent._netList.append(self)
 
+    def getParentBus(self):
+        return None
+
     def getLSB(self):
         return self._lsb
 
@@ -30,6 +33,12 @@ class Bus(nlNode):
         if index < self._lsb or index > self._msb:
             shout('ERROR', 'Index out of range')
         return self._nets[index-self._lsb]
+
+    def getNetIndex(self, net):
+        try:
+            return self._nets.index(net)
+        except:
+            return -1
 
     def setNet(self, index, net):
         if net.getType() != 'NET':
